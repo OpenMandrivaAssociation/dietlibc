@@ -1,6 +1,6 @@
 %define name	%{cross_prefix}dietlibc
 %define version 0.29
-%define release %mkrel 5
+%define release %mkrel 6
 
 # This is eventually a biarch package, so no %_lib for diethome
 %define diethome %{_prefix}/lib/dietlibc
@@ -59,6 +59,7 @@ Patch28:	dietlibc-0.28-64bit-size_t.patch
 Patch29:	dietlibc-0.29-sparc-rdtsc-tick-noerror.patch
 #Patch30:	dietlibc-0.29-sparc-disable-glob-test.patch
 Patch31:	dietlibc-0.29-sparc-weak-asm.patch
+Patch32:	dietlibc-0.29-64bit-fixes-printf.patch
 BuildRoot:	%{_tmppath}/%{name}-%{version}-%{release}-buildroot
 
 %description
@@ -105,6 +106,7 @@ Small libc for building embedded applications.
 %patch29 -p1 -b .sparc_rdtsc
 #%patch30 -p1 -b .sparc_disable_glob_test
 %patch31 -p1 -b .sparc_weak_asm
+%patch32 -p1 -b .64bit-fixes-printf
 
 # fix execute permission on test scripts
 chmod a+x test/{dirent,inet,stdio,string,stdlib,time}/runtests.sh
