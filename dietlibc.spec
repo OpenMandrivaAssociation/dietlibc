@@ -1,6 +1,6 @@
 %define name	%{cross_prefix}dietlibc
 %define version 0.29
-%define release %mkrel 6
+%define release %mkrel 7
 
 # This is eventually a biarch package, so no %_lib for diethome
 %define diethome %{_prefix}/lib/dietlibc
@@ -61,6 +61,8 @@ Patch29:	dietlibc-0.29-sparc-rdtsc-tick-noerror.patch
 Patch31:	dietlibc-0.29-sparc-weak-asm.patch
 Patch32:	dietlibc-0.29-64bit-fixes-printf.patch
 Patch33:	dietlibc-0.29-fix-strncmp.patch
+# (cjw) from PLD, see http://gcc.gnu.org/bugzilla/show_bug.cgi?id=26374
+Patch34:	dietlibc-0.29-ppc-gcc-ldbl128.patch
 BuildRoot:	%{_tmppath}/%{name}-%{version}-%{release}-buildroot
 
 %description
@@ -109,6 +111,7 @@ Small libc for building embedded applications.
 %patch31 -p1 -b .sparc_weak_asm
 %patch32 -p1 -b .64bit-fixes-printf
 %patch33 -p1 -b .fix-strncmp
+%patch34 -p1 -b .gcc-ppc-ldbl-bug
 
 # fix execute permission on test scripts
 chmod a+x test/{dirent,inet,stdio,string,stdlib,time}/runtests.sh
