@@ -1,6 +1,6 @@
 %define name	%{cross_prefix}dietlibc
-%define version 0.29
-%define release %mkrel 7
+%define version 0.30
+%define release %mkrel 1
 
 # This is eventually a biarch package, so no %_lib for diethome
 %define diethome %{_prefix}/lib/dietlibc
@@ -36,7 +36,7 @@ URL:		http://www.fefe.de/dietlibc/
 Source0:	http://www.fefe.de/dietlibc/dietlibc-%{version}.tar.bz2
 Source1:	build_cross_dietlibc.sh
 Patch0:		dietlibc-0.29-features.patch
-Patch1:		dietlibc-0.27-mdkconfig.patch
+Patch1:		dietlibc-0.30-mdkconfig.patch
 Patch3:		dietlibc-0.22-tests.patch
 Patch4:		dietlibc-0.27-fix-getpriority.patch
 Patch5:		dietlibc-0.22-net-ethernet.patch
@@ -55,7 +55,6 @@ Patch24:	dietlibc-0.27-quiet.patch
 Patch25:	dietlibc-0.27-ppc-select.patch
 Patch26:	dietlibc-0.27-kernel2.6-types.patch
 Patch27:	dietlibc-0.29-cross.patch
-Patch28:	dietlibc-0.28-64bit-size_t.patch
 Patch29:	dietlibc-0.29-sparc-rdtsc-tick-noerror.patch
 #Patch30:	dietlibc-0.29-sparc-disable-glob-test.patch
 Patch31:	dietlibc-0.29-sparc-weak-asm.patch
@@ -63,6 +62,8 @@ Patch32:	dietlibc-0.29-64bit-fixes-printf.patch
 Patch33:	dietlibc-0.29-fix-strncmp.patch
 # (cjw) from PLD, see http://gcc.gnu.org/bugzilla/show_bug.cgi?id=26374
 Patch34:	dietlibc-0.29-ppc-gcc-ldbl128.patch
+# (blino) from Alt Linux
+Patch35:	dietlibc-0.30-alt-fstatfs64-typo.patch
 BuildRoot:	%{_tmppath}/%{name}-%{version}-%{release}-buildroot
 
 %description
@@ -105,13 +106,13 @@ Small libc for building embedded applications.
 %patch25 -p1 -b .ppc-select
 %patch26 -p1 -b .kernel2.6-types
 %patch27 -p1 -b .cross
-%patch28 -p1 -b .64bit-size_t
 %patch29 -p1 -b .sparc_rdtsc
 #%patch30 -p1 -b .sparc_disable_glob_test
 %patch31 -p1 -b .sparc_weak_asm
 %patch32 -p1 -b .64bit-fixes-printf
 %patch33 -p1 -b .fix-strncmp
 %patch34 -p1 -b .gcc-ppc-ldbl-bug
+%patch35 -p1 -b .fstatfs64
 
 # fix execute permission on test scripts
 chmod a+x test/{dirent,inet,stdio,string,stdlib,time}/runtests.sh
