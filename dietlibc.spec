@@ -1,6 +1,6 @@
 %define name	%{cross_prefix}dietlibc
 %define version 0.30
-%define release %mkrel 2
+%define release %mkrel 3
 
 # This is eventually a biarch package, so no %_lib for diethome
 %define diethome %{_prefix}/lib/dietlibc
@@ -65,6 +65,8 @@ Patch34:	dietlibc-0.29-ppc-gcc-ldbl128.patch
 # (blino) from Alt Linux
 Patch35:	dietlibc-0.30-alt-fstatfs64-typo.patch
 Patch36:        dietlibc-0.30-relatime.patch
+# (pixel) add -fno-stack-protector to override default %{optflags}
+Patch37:	dietlibc-0.30-force-no-stack-protector.patch
 BuildRoot:	%{_tmppath}/%{name}-%{version}-%{release}-buildroot
 
 %description
