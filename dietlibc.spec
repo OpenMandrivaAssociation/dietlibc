@@ -117,6 +117,7 @@ Small libc for building embedded applications.
 %patch34 -p1 -b .gcc-ppc-ldbl-bug
 %patch35 -p1 -b .fstatfs64
 %patch36 -p1 -b .relatime
+%patch37 -p1 -b .stack-protector
 
 # fix execute permission on test scripts
 chmod a+x test/{dirent,inet,stdio,string,stdlib,time}/runtests.sh
