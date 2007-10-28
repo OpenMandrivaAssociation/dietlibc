@@ -1,6 +1,6 @@
 %define name	%{cross_prefix}dietlibc
-%define version 0.30
-%define release %mkrel 4
+%define version 0.31
+%define release %mkrel 1
 
 # This is eventually a biarch package, so no %_lib for diethome
 %define diethome %{_prefix}/lib/dietlibc
@@ -42,7 +42,6 @@ Patch4:		dietlibc-0.27-fix-getpriority.patch
 Patch5:		dietlibc-0.22-net-ethernet.patch
 Patch6:		dietlibc-0.24-rpc-types.patch
 Patch9:		dietlibc-0.27-glibc-nice.patch
-Patch13:	dietlibc-0.27-x86_64-lseek64.patch
 # (oe) http://synflood.at/patches/contrapolice/contrapolice-0.3.patch
 #Patch14:	dietlibc-0.28-contrapolice.diff.bz2
 Patch15:	dietlibc-0.27-ppc-rdtsc.patch
@@ -58,12 +57,9 @@ Patch27:	dietlibc-0.29-cross.patch
 Patch29:	dietlibc-0.29-sparc-rdtsc-tick-noerror.patch
 #Patch30:	dietlibc-0.29-sparc-disable-glob-test.patch
 Patch31:	dietlibc-0.29-sparc-weak-asm.patch
-Patch32:	dietlibc-0.29-64bit-fixes-printf.patch
 Patch33:	dietlibc-0.29-fix-strncmp.patch
 # (cjw) from PLD, see http://gcc.gnu.org/bugzilla/show_bug.cgi?id=26374
 Patch34:	dietlibc-0.29-ppc-gcc-ldbl128.patch
-# (blino) from Alt Linux
-Patch35:	dietlibc-0.30-alt-fstatfs64-typo.patch
 Patch36:        dietlibc-0.30-relatime.patch
 # (pixel) add -fno-stack-protector to override default %{optflags}
 Patch37:	dietlibc-0.30-force-no-stack-protector.patch
@@ -96,7 +92,6 @@ Small libc for building embedded applications.
 %patch5 -p1 -b .net-ethernet
 %patch6 -p1 -b .rpc-types
 %patch9 -p1 -b .glibc-nice -E
-%patch13 -p1 -b .x86_64-lseek64
 # (oe) http://synflood.at/patches/contrapolice/contrapolice-0.3.patch
 #%patch14 -p1 -b .contrapolice
 %patch15 -p1 -b .ppc-rdtsc
@@ -112,10 +107,8 @@ Small libc for building embedded applications.
 %patch29 -p1 -b .sparc_rdtsc
 #%patch30 -p1 -b .sparc_disable_glob_test
 %patch31 -p1 -b .sparc_weak_asm
-%patch32 -p1 -b .64bit-fixes-printf
 %patch33 -p1 -b .fix-strncmp
 %patch34 -p1 -b .gcc-ppc-ldbl-bug
-%patch35 -p1 -b .fstatfs64
 %patch36 -p1 -b .relatime
 %patch37 -p1 -b .stack-protector
 
