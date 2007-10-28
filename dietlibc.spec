@@ -101,7 +101,7 @@ Small libc for building embedded applications.
 #%patch14 -p1 -b .contrapolice
 %patch15 -p1 -b .ppc-rdtsc
 %patch16 -p1 -b .inettest
-#%patch17 -p1 -b .x86_64-stat64
+%patch17 -p1 -b .x86_64-stat64
 %patch21 -p1 -b .ppc64-select
 #%patch22 -p1 -b .ppc64-stat64
 %patch23 -p1 -b .biarch
