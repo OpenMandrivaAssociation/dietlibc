@@ -1,6 +1,6 @@
 %define name	%{cross_prefix}dietlibc
 %define version 0.31
-%define release %mkrel 1
+%define release %mkrel 2
 
 # This is eventually a biarch package, so no %_lib for diethome
 %define diethome %{_prefix}/lib/dietlibc
@@ -47,6 +47,7 @@ Patch9:		dietlibc-0.27-glibc-nice.patch
 Patch15:	dietlibc-0.27-ppc-rdtsc.patch
 Patch16:	dietlibc-0.27-test-makefile-fix.patch
 Patch17:	dietlibc-0.27-x86_64-stat64.patch
+Patch18:	dietlibc-0.27-x86_64-lseek64.diff
 Patch21:	dietlibc-0.24-ppc64-select.patch
 Patch22:	dietlibc-0.27-ppc64-stat64.patch
 Patch23:	dietlibc-0.29-biarch.patch
@@ -97,6 +98,7 @@ Small libc for building embedded applications.
 %patch15 -p1 -b .ppc-rdtsc
 %patch16 -p1 -b .inettest
 %patch17 -p1 -b .x86_64-stat64
+%patch18 -p0 -b .x86_64-lseek64
 %patch21 -p1 -b .ppc64-select
 #%patch22 -p1 -b .ppc64-stat64
 %patch23 -p1 -b .biarch
