@@ -64,6 +64,7 @@ Patch34:	dietlibc-0.29-ppc-gcc-ldbl128.patch
 Patch36:        dietlibc-0.30-relatime.patch
 # (pixel) add -fno-stack-protector to override default %{optflags}
 Patch37:	dietlibc-0.30-force-no-stack-protector.patch
+BuildRoot:	%{_tmppath}/%{name}-%{version}-%{release}-buildroot
 
 %description
 Small libc for building embedded applications.
