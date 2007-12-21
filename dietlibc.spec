@@ -1,6 +1,6 @@
 %define name	%{cross_prefix}dietlibc
 %define version 0.31
-%define release %mkrel 3
+%define release %mkrel 4
 
 # This is eventually a biarch package, so no %_lib for diethome
 %define diethome %{_prefix}/lib/dietlibc
