@@ -1,6 +1,9 @@
+%define _enable_debug_packages %{nil}
+%define debug_package          %{nil}
+
+%define snap 20080509
+
 %define name	%{cross_prefix}dietlibc
-%define version 0.31
-%define release %mkrel 5
 
 # This is eventually a biarch package, so no %_lib for diethome
 %define diethome %{_prefix}/lib/dietlibc
@@ -25,15 +28,15 @@
 
 Summary:	C library optimized for size
 Name:		%{name}
-Version:	%{version}
-Release:	%{release}
+Version:	0.32
+Release:	%mkrel 0.%{snap}.1
 License:	GPL
 Group:		Development/Other
 %if %{build_cross}
 BuildRequires:	%{cross_prefix}gcc
 %endif
 URL:		http://www.fefe.de/dietlibc/
-Source0:	http://www.fefe.de/dietlibc/dietlibc-%{version}.tar.bz2
+Source0:	http://www.fefe.de/dietlibc/dietlibc-%{version}-%{snap}.tar.gz
 Source1:	build_cross_dietlibc.sh
 Patch0:		dietlibc-0.29-features.patch
 Patch1:		dietlibc-0.30-mdkconfig.patch
@@ -64,6 +67,18 @@ Patch34:	dietlibc-0.29-ppc-gcc-ldbl128.patch
 Patch36:        dietlibc-0.30-relatime.patch
 # (pixel) add -fno-stack-protector to override default %{optflags}
 Patch37:	dietlibc-0.30-force-no-stack-protector.patch
+Patch100:	dietlibc-0.28-setpriority.patch
+Patch101:	dietlibc-0.29-scall.patch
+Patch102:	dietlibc-0.31-defpath.patch
+Patch103:	dietlibc-0.31-stacksmash.patch
+Patch104:	dietlibc-0.31-stacksmash-dyn.patch
+Patch105:	dietlibc-0.31.20080212-teststdout.patch
+Patch106:	dietlibc-0.31-pagesize.patch
+Patch107:	dietlibc-0.31-printFG.patch
+Patch108:	dietlibc-0.31-testsuite.patch
+Patch109:	dietlibc-0.31-lcctime.patch
+Patch110:	dietlibc-0.31-implicitfunc.patch
+Patch111:	dietlibc-0.31-noreturn.patch
 BuildRoot:	%{_tmppath}/%{name}-%{version}-%{release}-buildroot
 
 %description
@@ -85,9 +100,19 @@ Provides:	%{name} = %{version}-%{release}
 Small libc for building embedded applications.
 
 %prep
-%setup -q
+
+%setup -q -n %{name}-%{version}-%{snap}
+
+find . -type d -perm 0700 -exec chmod 755 {} \;
+find . -type f -perm 0555 -exec chmod 755 {} \;
+find . -type f -perm 0444 -exec chmod 644 {} \;
+
+for i in `find . -type d -name CVS` `find . -type f -name .cvs\*` `find . -type f -name .#\*`; do
+    if [ -e "$i" ]; then rm -rf $i; fi >&/dev/null
+done
+
 %patch0 -p1 -b .features
-%patch1 -p1 -b .mdkconfig
+%patch1 -p0 -b .mdkconfig
 %patch3 -p1 -b .tests
 %patch4 -p1 -b .fix-getpriority
 %patch5 -p1 -b .net-ethernet
@@ -105,7 +130,7 @@ Small libc for building embedded applications.
 %patch24 -p1 -b .quiet
 %patch25 -p1 -b .ppc-select
 %patch26 -p1 -b .kernel2.6-types
-%patch27 -p1 -b .cross
+%patch27 -p0 -b .cross
 %patch29 -p1 -b .sparc_rdtsc
 #%patch30 -p1 -b .sparc_disable_glob_test
 %patch31 -p1 -b .sparc_weak_asm
@@ -113,6 +138,20 @@ Small libc for building embedded applications.
 %patch34 -p1 -b .gcc-ppc-ldbl-bug
 %patch36 -p1 -b .relatime
 %patch37 -p1 -b .stack-protector
+
+# P100 - P111 is from fedora 
+%patch100 -p1 -b .setpriority
+%patch101 -p1 -b .scall
+%patch102 -p1 -b .defpath
+%patch103 -p1 -b .stacksmash
+%patch104 -p1 -b .stacksmash-dyn
+%patch105 -p1 -b .teststdout
+%patch106 -p1 -b .pagesize
+%patch107 -p1 -b .printFG
+%patch108 -p1 -b .testsuite
+%patch109 -p1 -b .lcctime
+%patch110 -p1 -b .implicitfunc
+%patch111 -p1 -b .noreturn
 
 # fix execute permission on test scripts
 chmod a+x test/{dirent,inet,stdio,string,stdlib,time}/runtests.sh
@@ -124,7 +163,7 @@ chmod a+x test/{dirent,inet,stdio,string,stdlib,time}/runtests.sh
 # make and run the tests
 %if %{build_check}
 cd test; rm *.c.*
-export DIETHOME="%{_builddir}/%{name}-%{version}"
+export DIETHOME="%{_builddir}/%{name}-%{version}-%{snap}"
 MYARCH=`uname -m | sed -e 's/i[4-9]86/i386/' -e 's/armv[3-6][lb]/arm/'`
 find -name "Makefile" | xargs perl -pi -e "s|^DIET.*|DIET=\"${DIETHOME}/bin-${MYARCH}/diet\"|g"
 %make
@@ -145,12 +184,12 @@ cd ..
 %endif
 
 %install
-[ -n "%{buildroot}" -a "%{buildroot}" != / ] && rm -rf %{buildroot}
+rm -rf %{buildroot}
 
 make %{cross_make_flags} DESTDIR=%{buildroot} install
 
 %clean
-[ -n "%{buildroot}" -a "%{buildroot}" != / ] && rm -rf %{buildroot}
+rm -rf %{buildroot}
 
 %files devel
 %defattr(-,root,root)
@@ -164,4 +203,3 @@ make %{cross_make_flags} DESTDIR=%{buildroot} install
 %endif
 %dir %{diethome}/lib-*
 %{diethome}/lib-*/*
-
