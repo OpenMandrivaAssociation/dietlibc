@@ -41,12 +41,9 @@ Source1:	build_cross_dietlibc.sh
 Patch0:		dietlibc-0.29-features.patch
 Patch1:		dietlibc-0.30-mdkconfig.patch
 Patch3:		dietlibc-0.22-tests.patch
-Patch4:		dietlibc-0.27-fix-getpriority.patch
 Patch5:		dietlibc-0.22-net-ethernet.patch
 Patch6:		dietlibc-0.24-rpc-types.patch
 Patch9:		dietlibc-0.27-glibc-nice.patch
-# (oe) http://synflood.at/patches/contrapolice/contrapolice-0.3.patch
-#Patch14:	dietlibc-0.28-contrapolice.diff.bz2
 Patch15:	dietlibc-0.27-ppc-rdtsc.patch
 Patch16:	dietlibc-0.27-test-makefile-fix.patch
 Patch17:	dietlibc-0.27-x86_64-stat64.patch
@@ -114,12 +111,9 @@ done
 %patch0 -p1 -b .features
 %patch1 -p0 -b .mdkconfig
 %patch3 -p1 -b .tests
-%patch4 -p1 -b .fix-getpriority
 %patch5 -p1 -b .net-ethernet
 %patch6 -p1 -b .rpc-types
 %patch9 -p1 -b .glibc-nice -E
-# (oe) http://synflood.at/patches/contrapolice/contrapolice-0.3.patch
-#%patch14 -p1 -b .contrapolice
 %patch15 -p1 -b .ppc-rdtsc
 %patch16 -p1 -b .inettest
 %patch17 -p1 -b .x86_64-stat64
