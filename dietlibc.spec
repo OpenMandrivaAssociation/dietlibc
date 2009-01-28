@@ -1,7 +1,7 @@
 %define _enable_debug_packages %{nil}
 %define debug_package          %{nil}
 
-%define snap 20080509
+%define snap 20090113
 
 %define name	%{cross_prefix}dietlibc
 
@@ -29,7 +29,7 @@
 Summary:	C library optimized for size
 Name:		%{name}
 Version:	0.32
-Release:	%mkrel 3.%{snap}.2
+Release:	%mkrel 3.%{snap}.1
 License:	GPL
 Group:		Development/Other
 %if %{build_cross}
