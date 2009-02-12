@@ -29,7 +29,7 @@
 Summary:	C library optimized for size
 Name:		%{name}
 Version:	0.32
-Release:	%mkrel 3.%{snap}.1
+Release:	%mkrel 4.%{snap}.1
 License:	GPL
 Group:		Development/Other
 %if %{build_cross}
@@ -64,6 +64,7 @@ Patch34:	dietlibc-0.29-ppc-gcc-ldbl128.patch
 Patch36:        dietlibc-0.30-relatime.patch
 # (pixel) add -fno-stack-protector to override default %{optflags}
 Patch37:	dietlibc-0.30-force-no-stack-protector.patch
+Patch38:	dietlibc-0.32-fgetc.patch
 Patch100:	dietlibc-0.28-setpriority.patch
 Patch101:	dietlibc-0.29-scall.patch
 Patch102:	dietlibc-0.31-defpath.patch
@@ -132,6 +133,7 @@ done
 %patch34 -p1 -b .gcc-ppc-ldbl-bug
 %patch36 -p1 -b .relatime
 %patch37 -p1 -b .stack-protector
+%patch38 -p0 -b .fgetc
 
 # P100 - P111 is from fedora 
 %patch100 -p1 -b .setpriority
