@@ -29,7 +29,7 @@
 Summary:	C library optimized for size
 Name:		%{name}
 Version:	0.32
-Release:	%mkrel 4.%{snap}.2
+Release:	%mkrel 4.%{snap}.3
 License:	GPL
 Group:		Development/Other
 %if %{build_cross}
@@ -77,6 +77,7 @@ Patch108:	dietlibc-0.31-testsuite.patch
 Patch109:	dietlibc-0.31-lcctime.patch
 Patch110:	dietlibc-0.31-implicitfunc.patch
 Patch111:	dietlibc-0.31-noreturn.patch
+Patch112:	dietlibc-0.32-20090113-fix_getpriority.patch
 BuildRoot:	%{_tmppath}/%{name}-%{version}-%{release}-buildroot
 
 %description
@@ -148,6 +149,9 @@ done
 %patch109 -p1 -b .lcctime
 %patch110 -p1 -b .implicitfunc
 %patch111 -p1 -b .noreturn
+
+%patch112 -p1 -b .fix_getpriority
+rm -f x86_64/getpriority.S
 
 # fix execute permission on test scripts
 chmod a+x test/{dirent,inet,stdio,string,stdlib,time}/runtests.sh
