@@ -29,7 +29,7 @@
 Summary:	C library optimized for size
 Name:		%{name}
 Version:	0.32
-Release:	%mkrel 4.%{snap}.3
+Release:	%mkrel 4.%{snap}.4
 License:	GPL
 Group:		Development/Other
 %if %{build_cross}
