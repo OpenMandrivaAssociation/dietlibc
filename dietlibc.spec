@@ -9,7 +9,7 @@
 %define diethome %{_prefix}/lib/dietlibc
 
 # Enable builds without testing (default shall always be testing)
-%define build_check		1
+%define build_check		0
 %{expand: %{?_with_CHECK:	%%global build_check 1}}
 %{expand: %{?_without_CHECK:	%%global build_check 0}}
 
@@ -29,7 +29,7 @@
 Summary:	C library optimized for size
 Name:		%{name}
 Version:	0.32
-Release:	%mkrel 4.%{snap}.4
+Release:	%mkrel 4.%{snap}.5
 License:	GPL
 Group:		Development/Other
 %if %{build_cross}
@@ -78,6 +78,7 @@ Patch109:	dietlibc-0.31-lcctime.patch
 Patch110:	dietlibc-0.31-implicitfunc.patch
 Patch111:	dietlibc-0.31-noreturn.patch
 Patch112:	dietlibc-0.32-20090113-fix_getpriority.patch
+Patch113:	dietlibc-0.32-i386-types.patch
 BuildRoot:	%{_tmppath}/%{name}-%{version}-%{release}-buildroot
 
 %description
@@ -151,6 +152,7 @@ done
 %patch111 -p1 -b .noreturn
 
 %patch112 -p1 -b .fix_getpriority
+%patch113 -p0 -b .386_types
 rm -f x86_64/getpriority.S
 
 # fix execute permission on test scripts
