@@ -79,6 +79,15 @@ Patch110:	dietlibc-0.31-implicitfunc.patch
 Patch111:	dietlibc-0.31-noreturn.patch
 Patch112:	dietlibc-0.32-20090113-fix_getpriority.patch
 Patch113:	dietlibc-0.32-i386-types.patch
+
+Patch200:       dietlibc_mips_Makefile_fixes.patch
+Patch201:       dietlibc_mips_use_misc.patch
+Patch202:	dietlibc_mips_assembly_fix.patch
+Patch300:	diet_arm_eabi_time.patch
+Patch301:	diet_arm_create_module.patch
+Patch302:	diet_use_ugetrlimit_for_getrlimit.patch
+Patch303:	dietlibc_arm_fix_pagesize_patch.patch
+
 BuildRoot:	%{_tmppath}/%{name}-%{version}-%{release}-buildroot
 
 %description
@@ -150,6 +159,13 @@ done
 %patch109 -p1 -b .lcctime
 %patch110 -p1 -b .implicitfunc
 %patch111 -p1 -b .noreturn
+%patch200 -p1 -b .mips
+%patch201 -p1 -b .mips_misc
+%patch202 -p1 -b .mips_asm
+%patch300 -p1 -b .arm_time
+%patch301 -p1 -b .arm_create_module
+%patch302 -p1 -b .getrlimit
+%patch303 -p1 -b .pagesize_fix
 
 %patch112 -p1 -b .fix_getpriority
 %patch113 -p0 -b .386_types
@@ -159,16 +175,19 @@ rm -f x86_64/getpriority.S
 chmod a+x test/{dirent,inet,stdio,string,stdlib,time}/runtests.sh
 
 %build
-%make %{cross_make_flags}
+%make %{cross_make_flags} DEBUG=1
 
 %check
 # make and run the tests
 %if %{build_check}
 cd test; rm *.c.*
+%ifarch %mips %arm
+sed -i -e 's!cycles empty!empty!' Makefile
+%endif
 export DIETHOME="%{_builddir}/%{name}-%{version}-%{snap}"
-MYARCH=`uname -m | sed -e 's/i[4-9]86/i386/' -e 's/armv[3-6][lb]/arm/'`
+MYARCH=`uname -m | sed -e 's/i[4-9]86/i386/' -e 's/armv[3-6]t\?e\?[lb]/arm/' -e 's!mips!%{_arch}!g'`
 find -name "Makefile" | xargs perl -pi -e "s|^DIET.*|DIET=\"${DIETHOME}/bin-${MYARCH}/diet\"|g"
-%make
+%make DEBUG=1
 cd ..
 %endif
 
@@ -188,7 +207,7 @@ cd ..
 %install
 rm -rf %{buildroot}
 
-make %{cross_make_flags} DESTDIR=%{buildroot} install
+make %{cross_make_flags} DEBUG=1 DESTDIR=%{buildroot} install
 
 %clean
 rm -rf %{buildroot}
