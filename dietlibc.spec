@@ -80,13 +80,14 @@ Patch111:	dietlibc-0.31-noreturn.patch
 Patch112:	dietlibc-0.32-20090113-fix_getpriority.patch
 Patch113:	dietlibc-0.32-i386-types.patch
 
-Patch200:       dietlibc_mips_Makefile_fixes.patch
-Patch201:       dietlibc_mips_use_misc.patch
+Patch200:	dietlibc_mips_Makefile_fixes.patch
+Patch201:	dietlibc_mips_use_misc.patch
 Patch202:	dietlibc_mips_assembly_fix.patch
 Patch300:	diet_arm_eabi_time.patch
 Patch301:	diet_arm_create_module.patch
 Patch302:	diet_use_ugetrlimit_for_getrlimit.patch
 Patch303:	dietlibc_arm_fix_pagesize_patch.patch
+Patch304:	dietlibc-0.32-20090113_Makefile-MYARCH.patch
 
 BuildRoot:	%{_tmppath}/%{name}-%{version}-%{release}-buildroot
 
@@ -159,6 +160,10 @@ done
 %patch109 -p1 -b .lcctime
 %patch110 -p1 -b .implicitfunc
 %patch111 -p1 -b .noreturn
+%patch112 -p1 -b .fix_getpriority
+%patch113 -p0 -b .386_types
+
+# arm & mips patches
 %patch200 -p1 -b .mips
 %patch201 -p1 -b .mips_misc
 %patch202 -p1 -b .mips_asm
@@ -166,9 +171,8 @@ done
 %patch301 -p1 -b .arm_create_module
 %patch302 -p1 -b .getrlimit
 %patch303 -p1 -b .pagesize_fix
+%patch304 -p1 -b .makefile_armv7l
 
-%patch112 -p1 -b .fix_getpriority
-%patch113 -p0 -b .386_types
 rm -f x86_64/getpriority.S
 
 # fix execute permission on test scripts
@@ -185,7 +189,7 @@ cd test; rm *.c.*
 sed -i -e 's!cycles empty!empty!' Makefile
 %endif
 export DIETHOME="%{_builddir}/%{name}-%{version}-%{snap}"
-MYARCH=`uname -m | sed -e 's/i[4-9]86/i386/' -e 's/armv[3-6]t\?e\?[lb]/arm/' -e 's!mips!%{_arch}!g'`
+MYARCH=`uname -m | sed -e 's/i[4-9]86/i386/' -e 's/armv[3-7][lt]\?e\?[lb]/arm/' -e 's!mips!%{_arch}!g'`
 find -name "Makefile" | xargs perl -pi -e "s|^DIET.*|DIET=\"${DIETHOME}/bin-${MYARCH}/diet\"|g"
 %make DEBUG=1
 cd ..
