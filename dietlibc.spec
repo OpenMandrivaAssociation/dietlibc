@@ -132,14 +132,14 @@ done
 %patch17 -p1 -b .x86_64-stat64
 %patch18 -p0 -b .x86_64-lseek64
 %patch21 -p1 -b .ppc64-select
-#%patch22 -p1 -b .ppc64-stat64
+#%%patch22 -p1 -b .ppc64-stat64
 %patch23 -p1 -b .biarch
 %patch24 -p1 -b .quiet
 %patch25 -p1 -b .ppc-select
 %patch26 -p1 -b .kernel2.6-types
 %patch27 -p0 -b .cross
 %patch29 -p1 -b .sparc_rdtsc
-#%patch30 -p1 -b .sparc_disable_glob_test
+#%%patch30 -p1 -b .sparc_disable_glob_test
 %patch31 -p1 -b .sparc_weak_asm
 %patch33 -p1 -b .fix-strncmp
 %patch34 -p1 -b .gcc-ppc-ldbl-bug
