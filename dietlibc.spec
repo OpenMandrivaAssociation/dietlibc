@@ -188,7 +188,7 @@ cd ..
 %endif
 
 %install
-make %{cross_make_flags} DEBUG=1 DESTDIR=%{buildroot} install
+%makeinstall_std %{cross_make_flags} DEBUG=1
 
 %files devel
 %doc AUTHOR BUGS CAVEAT CHANGES README THANKS TODO FAQ
