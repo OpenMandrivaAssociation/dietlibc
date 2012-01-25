@@ -82,10 +82,6 @@ Patch321:	readdir_r.diff
 # (tv) add string.h's basename (prevent libkmod to segfault in basebame())
 Patch322:	basename.diff
 
-
-
-BuildRoot:	%{_tmppath}/%{name}-%{version}-%{release}-buildroot
-
 %description
 Small libc for building embedded applications.
 
@@ -192,15 +188,9 @@ cd ..
 %endif
 
 %install
-rm -rf %{buildroot}
-
 make %{cross_make_flags} DEBUG=1 DESTDIR=%{buildroot} install
 
-%clean
-rm -rf %{buildroot}
-
 %files devel
-%defattr(-,root,root)
 %doc AUTHOR BUGS CAVEAT CHANGES README THANKS TODO FAQ
 %if ! %{build_cross}
 %{_bindir}/diet
