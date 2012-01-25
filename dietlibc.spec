@@ -94,8 +94,7 @@ Summary:        Development files for dietlibc
 Requires:	dietlibc >= %{version}
 Requires:	%{cross_prefix}gcc
 %endif
-Obsoletes:	%{name}
-Provides:	%{name} = %{version}-%{release}
+%rename		%{name}
 
 %description	devel
 Small libc for building embedded applications.
