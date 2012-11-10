@@ -1,0 +1,3834 @@
+ .gitignore                 |    1 +
+ Makefile                   |   76 +++++++++++++----------
+ alpha/start.S              |    9 +++
+ arm/__aeabi_unwind_cpp.S   |   25 +++-----
+ arm/__fadvise.c            |    5 +-
+ arm/__guard.S              |    3 +
+ arm/__longjmp.S            |   13 +++--
+ arm/__testandset.S         |   16 ++++-
+ arm/arm-features.h         |  103 ++++++++++++++++++++++++++++++++
+ arm/clone.S                |   22 ++++----
+ arm/dyn_syscalls.S         |   18 ++++--
+ arm/mcount.S               |   10 +--
+ arm/md5asm.S               |   26 +++-----
+ arm/mmap.S                 |   42 -------------
+ arm/setjmp.S               |   29 +++++----
+ arm/start.S                |   65 +++++++++++++--------
+ arm/strcpy.S               |   12 +---
+ arm/strlen.S               |   15 +----
+ arm/syscalls.h             |   65 ++++----------------
+ arm/unified.S              |   45 +++++++++-----
+ arm/waitpid.S              |   19 ++----
+ dietdirent.h               |    6 ++-
+ dietelfinfo.h              |   20 ++++++
+ dietfeatures.h             |   14 +++++
+ dietpagesize.h             |   31 ++++++++++
+ dynlinker/ldso_start.S     |    9 +++
+ i386/start.S               |    8 ++-
+ ia64/start.S               |   10 +++
+ include/paths.h            |    2 +-
+ include/stdlib.h           |    8 ++-
+ include/sys/shm.h          |    9 ---
+ lib/__dtostr.c             |   18 ++++--
+ lib/__get_elf_aux_value.c  |   14 +++++
+ lib/__nice.c               |    8 ++-
+ lib/__utime.c              |    5 +-
+ lib/__v_printf.c           |   59 ++++++++++---------
+ lib/alloc.c                |    9 ++-
+ lib/closedir.c             |    4 +-
+ lib/mmap64.c               |    6 +-
+ lib/opendir.c              |    4 +-
+ lib/readdir.c              |    2 +-
+ lib/readdir64.c            |    6 +-
+ lib/stack_smash_handler2.c |   13 ++++-
+ lib/stackgap.c             |   37 ++++++++++-
+ libcompat/syscall.S        |    8 ++-
+ libcruft/getpagesize.c     |   28 ++++-----
+ libcruft/mkstemp.c         |    1 +
+ libcruft/sysconf.c         |   17 ++++--
+ libm/ceil.c                |   92 +++++++++++++++++++++++++++++
+ libm/gamma.c               |   26 ++++----
+ librpc/clnt_raw.c          |   11 ++-
+ librpc/clnt_udp.c          |    2 +-
+ libugly/strftime.c         |    1 +
+ libugly/strptime.c         |    5 +-
+ mips/start.S               |    9 +++
+ parisc/start.S             |   10 +++
+ ppc/start.S                |    9 +++
+ ppc64/start.S              |    9 +++
+ s390/start.S               |   11 ++++
+ s390x/start.S              |   11 ++++
+ sparc/shmat.c              |    8 +--
+ sparc/start.S              |   11 ++++
+ sparc64/start.S            |   11 ++++
+ syscalls.s/environ.S       |   16 +++++
+ syscalls.s/fadvise64.S     |    9 +--
+ test/.gitignore            |   85 ++++++++++++++++++++++++++
+ test/Makefile              |   10 ++--
+ test/adjtime.c             |   18 +++++-
+ test/asprintf.c            |    2 +-
+ test/atexit.c              |    2 +-
+ test/bsearch.c             |    2 +-
+ test/byteswap.c            |    8 +-
+ test/cycles.c              |    5 +-
+ test/dirent/.gitignore     |    2 +
+ test/ftruncate.c           |   54 +++++++++++++++++
+ test/getmntent.c           |    6 +--
+ test/getservbyname.c       |    1 +
+ test/if_nameindex.c        |    4 +
+ test/malloc-debugger.c     |    2 +-
+ test/math.c                |   29 +++++++++
+ test/mktime.c              |    6 +-
+ test/mmap_test.c           |    2 +-
+ test/pipe.c                |    3 +
+ test/printf.c              |   44 ++++++++++++--
+ test/printftest.c          |    6 +-
+ test/rand48.c              |   12 ++--
+ test/runtests.sh           |    2 +-
+ test/sendfile.c            |    2 +-
+ test/setjmp.c              |  106 +++++++++++++++++++++++++++++++++
+ test/sigsetjmp.c           |  140 ++++++++++++++++++++++++++++++++++++++++++++
+ test/speed.c               |    4 +-
+ test/stdio/.gitignore      |   14 +++++
+ test/stdio/tstscanf.c      |    4 +-
+ test/stdlib/.gitignore     |   13 ++++
+ test/stdlib/testsort.c     |    2 +
+ test/stdlib/tst-calloc.c   |    2 +
+ test/stdlib/tst-malloc.c   |    6 ++-
+ test/stdlib/tst-strtod.c   |    4 +-
+ test/string/.gitignore     |   16 +++++
+ test/sysconf.c             |   80 +++++++++++++++++++++++++
+ test/sysenter.c            |    6 +-
+ test/time/.gitignore       |    4 +
+ test/time/tst-strftime.c   |    6 +-
+ test/time/tst-strptime.c   |   23 ++++++-
+ test/waitpid.c             |    2 +-
+ x86_64/__time.S            |   11 ++++
+ x86_64/start.S             |   16 +++++
+ x86_64/time.S              |   12 +----
+ 108 files changed, 1538 insertions(+), 466 deletions(-)
+
+diff --git a/.gitignore b/.gitignore
+new file mode 100644
+index 0000000..0a72698
+--- /dev/null
++++ b/.gitignore
+@@ -0,0 +1 @@
++/.cvsps
+diff --git a/Makefile b/Makefile
+index 143113b..a4f0c0c 100644
+--- a/Makefile
++++ b/Makefile
+@@ -88,7 +88,7 @@ ILIBDIR=$(LIBDIR)-$(ARCH)
+ 
+ HOME=$(shell pwd)
+ 
+-WHAT=	$(OBJDIR) $(OBJDIR)/start.o $(OBJDIR)/dyn_start.o $(OBJDIR)/dyn_stop.o \
++WHAT=	$(OBJDIR)/start.o $(OBJDIR)/dyn_start.o $(OBJDIR)/dyn_stop.o \
+ 	$(OBJDIR)/dietlibc.a $(OBJDIR)/liblatin1.a \
+ 	$(OBJDIR)/libcompat.a $(OBJDIR)/libm.a \
+ 	$(OBJDIR)/librpc.a $(OBJDIR)/libpthread.a \
+@@ -105,6 +105,7 @@ CROSS=
+ 
+ CC=gcc
+ INC=-I. -isystem include
++STRIP=$(CROSS)strip
+ 
+ VPATH=lib:libstdio:libugly:libcruft:libcrypt:libshell:liblatin1:libcompat:libdl:librpc:libregex:libm:profiling
+ 
+@@ -128,6 +129,8 @@ LIBPTHREAD_OBJS=$(patsubst libpthread/%.c,$(OBJDIR)/%.o,$(shell ./threadsafe.sh)
+ 
+ LIBGMON_OBJS=$(OBJDIR)/__mcount.o $(OBJDIR)/monitor.o $(OBJDIR)/profil.o
+ 
++NO_STACK_PROTECTOR=stackgap.o __get_elf_aux_value.o
++
+ include $(ARCH)/Makefile.add
+ 
+ LIBMATHOBJ=$(patsubst %,$(OBJDIR)/%,$(LIBMATH))
+@@ -150,34 +153,36 @@ PWD=$(shell pwd)
+ # added real dynamic dietlibc.so
+ PICODIR = pic-$(ARCH)
+ 
+-$(OBJDIR) $(PICODIR):
+-	mkdir $@
+-
+ % :: %,v
+ 
+-$(OBJDIR)/%.o: $(OBJDIR)
++%/.dirstamp:
++	mkdir $*
++	@touch $@
+ 
+ ifeq ($(CC),tcc)
+-$(OBJDIR)/%.o: %.S $(ARCH)/syscalls.h
++$(OBJDIR)/%.o: %.S $(ARCH)/syscalls.h $(OBJDIR)/.dirstamp
+ 	$(CROSS)cpp $(INC) $< | $(CROSS)as -o $@
+ 
+-$(OBJDIR)/%.o: %.c
++$(OBJDIR)/%.o: %.c $(OBJDIR)/.dirstamp
+ 	tcc -I. -Iinclude -c $< -o $@
+-	$(COMMENT) -$(CROSS)strip -x -R .comment -R .note $@
++	$(COMMENT) -$(STRIP) -x -R .comment -R .note $@
+ else
+-$(OBJDIR)/pstart.o: start.S
++$(OBJDIR)/pstart.o: start.S $(OBJDIR)/.dirstamp
+ 	$(CROSS)$(CC) $(INC) $(CFLAGS) -DPROFILING -c $< -o $@
+ 
+-$(OBJDIR)/%.o: %.S $(ARCH)/syscalls.h
++$(OBJDIR)/%.o: %.S $(ARCH)/syscalls.h $(OBJDIR)/.dirstamp
+ 	$(CROSS)$(CC) $(INC) $(CFLAGS) -c $< -o $@
+ 
+-$(OBJDIR)/pthread_%.o: libpthread/pthread_%.c
++$(OBJDIR)/pthread_%.o: libpthread/pthread_%.c $(OBJDIR)/.dirstamp
+ 	$(CROSS)$(CC) $(INC) $(CFLAGS) -c $< -o $@
+-	$(COMMENT) -$(CROSS)strip -x -R .comment -R .note $@
++	$(COMMENT) -$(STRIP) -x -R .comment -R .note $@
++$(OBJDIR)/stack_smash_handler2.o:	XCFLAGS:=-fno-omit-frame-pointer
+ 
+-$(OBJDIR)/%.o: %.c
+-	$(CROSS)$(CC) $(INC) $(CFLAGS) -c $< -o $@ -D__dietlibc__
+-	$(COMMENT) -$(CROSS)strip -x -R .comment -R .note $@
++$(OBJDIR)/%.o: %.c $(OBJDIR)/.dirstamp
++	$(CROSS)$(CC) $(INC) $(CFLAGS) $(XCFLAGS) -c $< -o $@ -D__dietlibc__
++	$(COMMENT) -$(STRIP) -x -R .comment -R .note $@
++
++$(addprefix $(OBJDIR)/,$(NO_STACK_PROTECTOR)):	XCFLAGS+=-fno-stack-protector
+ endif
+ 
+ ifeq ($(shell $(CC) -v 2>&1 | grep "gcc version"),gcc version 4.0.0)
+@@ -190,7 +195,7 @@ endif
+ 
+ CC+=-D__dietlibc__
+ 
+-$(OBJDIR)/crypt.o: libcrypt/crypt.c
++$(OBJDIR)/crypt.o: libcrypt/crypt.c $(OBJDIR)/.dirstamp
+ 	$(CROSS)$(CC) $(INC) $(SAFER_CFLAGS) -c $< -o $@
+ 
+ DIETLIBC_OBJ = $(OBJDIR)/unified.o \
+@@ -205,7 +210,7 @@ $(OBJDIR)/dietlibc.a: $(DIETLIBC_OBJ) $(OBJDIR)/start.o
+ $(OBJDIR)/librpc.a: $(LIBRPCOBJ)
+ 	$(CROSS)ar cru $@ $(LIBRPCOBJ)
+ 
+-$(OBJDIR)/libcrypt.a:
++$(OBJDIR)/libcrypt.a: $(OBJDIR)/.dirstamp
+ 	touch dummy.c
+ 	$(CROSS)$(CC) -c dummy.c
+ 	$(CROSS)ar cru $@ dummy.o
+@@ -237,28 +242,28 @@ dyn: dyn_lib
+ $(OBJDIR)/libdl.a: $(LIBDLOBJ)
+ 	$(CROSS)ar cru $@ $(LIBDLOBJ)
+ 
+-dyn_lib: $(PICODIR) $(PICODIR)/libc.so $(PICODIR)/dstart.o \
++dyn_lib: $(PICODIR)/libc.so $(PICODIR)/dstart.o \
+ 	$(PICODIR)/dyn_so_start.o $(PICODIR)/dyn_start.o $(PICODIR)/dyn_stop.o \
+ 	$(PICODIR)/libpthread.so $(PICODIR)/libdl.so $(PICODIR)/libcompat.so \
+ 	$(PICODIR)/libm.so $(PICODIR)/diet-dyn $(PICODIR)/diet-dyn-i
+ 
+-$(PICODIR)/%.o: %.S $(ARCH)/syscalls.h
++$(PICODIR)/%.o: %.S $(ARCH)/syscalls.h $(PICODIR)/.dirstamp
+ 	$(CROSS)$(CC) $(INC) $(CFLAGS) -fPIC -D__DYN_LIB -c $< -o $@
+ 
+-$(PICODIR)/pthread_%.o: libpthread/pthread_%.c
++$(PICODIR)/pthread_%.o: libpthread/pthread_%.c $(PICODIR)/.dirstamp
+ 	$(CROSS)$(CC) $(INC) $(CFLAGS) -fPIC -D__DYN_LIB -c $< -o $@
+-	$(COMMENT) $(CROSS)strip -x -R .comment -R .note $@
++	$(COMMENT) $(STRIP) -x -R .comment -R .note $@
+ 
+-$(PICODIR)/%.o: %.c
++$(PICODIR)/%.o: %.c $(PICODIR)/.dirstamp
+ 	$(CROSS)$(CC) $(INC) $(CFLAGS) -fPIC -D__DYN_LIB -c $< -o $@
+-	$(COMMENT) $(CROSS)strip -x -R .comment -R .note $@
++	$(COMMENT) $(STRIP) -x -R .comment -R .note $@
+ 
+-$(PICODIR)/dstart.o: start.S
++$(PICODIR)/dstart.o: start.S $(PICODIR)/.dirstamp
+ 	$(CROSS)$(CC) $(INC) $(CFLAGS) -fPIC -D__DYN_LIB -c $< -o $@
+ 
+-$(PICODIR)/dyn_so_start.o: dyn_start.c
++$(PICODIR)/dyn_so_start.o: dyn_start.c $(PICODIR)/.dirstamp
+ 	$(CROSS)$(CC) $(INC) $(CFLAGS) -fPIC -D__DYN_LIB -D__DYN_LIB_SHARED -c $< -o $@
+-	$(COMMENT) $(CROSS)strip -x -R .comment -R .note $@
++	$(COMMENT) $(STRIP) -x -R .comment -R .note $@
+ 
+ DYN_LIBC_PIC = $(LIBOBJ) $(LIBSTDIOOBJ) $(LIBUGLYOBJ) \
+ $(LIBCRUFTOBJ) $(LIBCRYPTOBJ) $(LIBSHELLOBJ) $(LIBREGEXOBJ)
+@@ -274,13 +279,13 @@ DYN_LIBCOMPAT_OBJS = $(patsubst $(OBJDIR)/%.o,$(PICODIR)/%.o,$(LIBCOMPATOBJ))
+ 
+ DYN_LIBMATH_OBJS = $(patsubst $(OBJDIR)/%.o,$(PICODIR)/%.o,$(LIBMATHOBJ))
+ 
+-$(PICODIR)/libc.so: $(PICODIR) $(DYN_LIBC_OBJ)
++$(PICODIR)/libc.so: $(DYN_LIBC_OBJ)
+ 	$(LD_UNSET) $(CROSS)$(CC) -nostdlib -shared -o $@ $(CFLAGS) -fPIC $(DYN_LIBC_OBJ) -lgcc -Wl,-soname=libc.so
+ 
+ $(PICODIR)/libpthread.so: $(DYN_PTHREAD_OBJS) dietfeatures.h
+ 	$(LD_UNSET) $(CROSS)$(CC) -nostdlib -shared -o $@ $(CFLAGS) -fPIC $(DYN_PTHREAD_OBJS) -L$(PICODIR) -lc -Wl,-soname=libpthread.so
+ 
+-$(PICODIR)/libdl.so: libdl/_dl_main.c dietfeatures.h
++$(PICODIR)/libdl.so: libdl/_dl_main.c dietfeatures.h $(PICODIR)/.dirstamp
+ 	$(LD_UNSET) $(CROSS)$(CC) -D__OD_CLEAN_ROOM -DNODIETREF -fPIC -nostdlib -shared -Bsymbolic -Wl,-Bsymbolic \
+ 		-o $@ $(SAFE_CFLAGS) $(INC) libdl/_dl_main.c -Wl,-soname=libdl.so
+ 
+@@ -310,19 +315,19 @@ CURNAME=$(notdir $(shell pwd))
+ 
+ $(OBJDIR)/diet: $(OBJDIR)/start.o $(OBJDIR)/dyn_start.o diet.c $(OBJDIR)/dietlibc.a $(OBJDIR)/dyn_stop.o
+ 	$(CROSS)$(CC) -isystem include $(CFLAGS) -nostdlib -o $@ $^ -DDIETHOME=\"$(HOME)\" -DVERSION=\"$(VERSION)\" -lgcc
+-	$(CROSS)strip -R .comment -R .note $@
++	$(STRIP) -R .comment -R .note $@
+ 
+ $(OBJDIR)/diet-i: $(OBJDIR)/start.o $(OBJDIR)/dyn_start.o diet.c $(OBJDIR)/dietlibc.a $(OBJDIR)/dyn_stop.o
+ 	$(CROSS)$(CC) -isystem include $(CFLAGS) -nostdlib -o $@ $^ -DDIETHOME=\"$(prefix)\" -DVERSION=\"$(VERSION)\" -DINSTALLVERSION -lgcc
+-	$(CROSS)strip -R .comment -R .note $@
++	$(STRIP) -R .comment -R .note $@
+ 
+ $(PICODIR)/diet-dyn: $(PICODIR)/start.o $(PICODIR)/dyn_start.o diet.c
+ 	$(LD_UNSET) $(CROSS)$(CC) -isystem include $(CFLAGS) -fPIC -nostdlib -o $@ $^ -DDIETHOME=\"$(HOME)\" -D__DYN_LIB -DVERSION=\"$(VERSION)\" -L$(PICODIR) -lc -lgcc $(PICODIR)/dyn_stop.o -Wl,-dynamic-linker=$(HOME)/$(PICODIR)/libdl.so
+-	$(CROSS)strip -R .command -R .note $@
++	$(STRIP) -R .command -R .note $@
+ 
+ $(PICODIR)/diet-dyn-i: $(PICODIR)/start.o $(PICODIR)/dyn_start.o diet.c
+ 	$(LD_UNSET) $(CROSS)$(CC) -isystem include $(CFLAGS) -fPIC -nostdlib -o $@ $^ -DDIETHOME=\"$(prefix)\" -D__DYN_LIB -DVERSION=\"$(VERSION)\" -L$(PICODIR) -lc -lgcc $(PICODIR)/dyn_stop.o -Wl,-dynamic-linker=$(ILIBDIR)/libdl.so -DINSTALLVERSION
+-	$(CROSS)strip -R .command -R .note $@
++	$(STRIP) -R .command -R .note $@
+ 
+ $(OBJDIR)/djb: $(OBJDIR)/compile $(OBJDIR)/load
+ 
+@@ -335,7 +340,7 @@ $(OBJDIR)/load:
+ 	chmod 755 $@
+ 
+ clean:
+-	rm -f *.o *.a t t1 compile load elftrunc exports mapfile libdietc.so
++	rm -f *.o *.a t t1 compile load elftrunc exports mapfile libdietc.so .dirstamp
+ 	rm -rf bin-* pic-*
+ 	$(MAKE) -C examples clean
+ 	$(MAKE) -C dynlinker clean
+@@ -531,3 +536,8 @@ $(OBJDIR)/stackgap.o: dietfeatures.h
+ 
+ # WANT_MALLOC_ZERO
+ $(OBJDIR)/strndup.o: dietfeatures.h
++
++
++GIT_CVSIMPORT=git cvsimport
++cvsimport:
++	$(GIT_CVSIMPORT) -k -p '--cvs-direct' -d :pserver:cvs@cvs.fefe.de:/cvs dietlibc
+diff --git a/alpha/start.S b/alpha/start.S
+index 7e7cf9b..b13c9c9 100644
+--- a/alpha/start.S
++++ b/alpha/start.S
+@@ -24,6 +24,15 @@ _start:
+ 
+ 	stq	$18, environ
+ 
++#ifdef WANT_ELFINFO
++#  warning "MAKE ME alpha ASSEMBLER!"
++1:	ldq	$19, $18	; load *envp into $19
++	addq	$18,  1,  $18	; increment *envp
++	orr	$19, $19, $19
++	jne	1b
++	stq	$18, __elfinfo
++#endif
++
+ #ifdef WANT_DYNAMIC
+ /* in v0 ($0) is the ld.so _fini pointer */
+ 	mov	 $0, $19	/* mov v0(dynload) to a3 */
+diff --git a/arm/__aeabi_unwind_cpp.S b/arm/__aeabi_unwind_cpp.S
+index ca631bc..9334eee 100644
+--- a/arm/__aeabi_unwind_cpp.S
++++ b/arm/__aeabi_unwind_cpp.S
+@@ -1,21 +1,14 @@
+-.text
+-.global __aeabi_unwind_cpp_pr0
+-.hidden __aeabi_unwind_cpp_pr0
+-.type __aeabi_unwind_cpp_pr0, %function
++#include "arm-features.h"
+ 
+-.global __aeabi_unwind_cpp_pr1
++FUNC_START __aeabi_unwind_cpp_pr0
++FUNC_START __aeabi_unwind_cpp_pr1
++FUNC_START __aeabi_unwind_cpp_pr2
++.hidden __aeabi_unwind_cpp_pr0
+ .hidden __aeabi_unwind_cpp_pr1
+-.type __aeabi_unwind_cpp_pr1, %function
+-
+-.global __aeabi_unwind_cpp_pr2
+ .hidden __aeabi_unwind_cpp_pr2
+-.type __aeabi_unwind_cpp_pr2, %function
+ 
+-__aeabi_unwind_cpp_pr0:
+-__aeabi_unwind_cpp_pr1:
+-__aeabi_unwind_cpp_pr2:
+-	mov	pc, lr	@ return from subroutine
++	RET
+ 
+-.size __aeabi_unwind_cpp_pr0,.-__aeabi_unwind_cpp_pr0
+-.size __aeabi_unwind_cpp_pr1,.-__aeabi_unwind_cpp_pr1
+-.size __aeabi_unwind_cpp_pr2,.-__aeabi_unwind_cpp_pr2
++FUNC_END  __aeabi_unwind_cpp_pr2
++FUNC_END  __aeabi_unwind_cpp_pr1
++FUNC_END  __aeabi_unwind_cpp_pr0
+diff --git a/arm/__fadvise.c b/arm/__fadvise.c
+index 0aa1246..c6748c4 100644
+--- a/arm/__fadvise.c
++++ b/arm/__fadvise.c
+@@ -1,7 +1,10 @@
+-#include <fcntl.h>
+ #include "syscalls.h"
+ 
+ #ifndef __NR_fadvise64
++#define _LINUX_SOURCE
++#include <fcntl.h>
++#include <unistd.h>
++
+ long fadvise64_64(int fd, off64_t offset, off64_t len, int advice)
+ {
+   extern long __arm_fadvise64_64(int fd, int advice, off64_t offset, off64_t len);
+diff --git a/arm/__guard.S b/arm/__guard.S
+index 7218d13..a4e53aa 100644
+--- a/arm/__guard.S
++++ b/arm/__guard.S
+@@ -1,4 +1,5 @@
+ .data
++.align 2
+ .type __guard,#object
+ .global __guard
+ .type __stack_chk_guard,#object
+@@ -7,3 +8,5 @@ __guard:
+ __stack_chk_guard:
+ .long 0xaff00
+ 
++.size __guard, . - __guard
++.size __stack_chk_guard, . - __stack_chk_guard
+diff --git a/arm/__longjmp.S b/arm/__longjmp.S
+index 31307bd..ba03146 100644
+--- a/arm/__longjmp.S
++++ b/arm/__longjmp.S
+@@ -1,11 +1,14 @@
+-.text
+-.global __longjmp
+-.type __longjmp,function
+-__longjmp:
++#include "arm-features.h"
++
++FUNC_START	__longjmp
+ 	mov	ip, r0
+ 	movs	r0, r1
+ 	moveq	r0, #1
+ #ifndef	__SOFTFP__
+-	lfm	f4, 4, [ip], #48
++	lfm	f4, 4, [ip, #10*4]
++#endif
++#ifdef __IWMMXT__
++#  warning "sigjmp will not restore iwmmxt coprocessor registers"
+ #endif
+ 	ldmia   ip, {r4-r11, sp, pc}
++FUNC_END	__longjmp
+diff --git a/arm/__testandset.S b/arm/__testandset.S
+index d9c5764..3b62c51 100644
+--- a/arm/__testandset.S
++++ b/arm/__testandset.S
+@@ -1,7 +1,15 @@
+-.text
+-.global __testandset
+-__testandset:
++#include "arm-features.h"
++
++FUNC_START	__testandset
+ 	mov	r2, r0
+ 	mov	r1, #1
++# if __ARM_ARCH__ < 6
+ 	swp	r0, r1, [r2]
+-	mov	pc, lr
++# else
++1:	ldrex	r0, [r2]
++	strex	r3, r1, [r2]
++	cmp	r3, #0
++	bne	1b
++# endif
++	RET
++FUNC_END	__testandset
+diff --git a/arm/arm-features.h b/arm/arm-features.h
+new file mode 100644
+index 0000000..cf330eb
+--- /dev/null
++++ b/arm/arm-features.h
+@@ -0,0 +1,103 @@
++/* --*- asm -*-- */
++
++#ifndef H_DIETLIBC_ARM_FEATURES_H
++#define H_DIETLIBC_ARM_FEATURES_H
++
++/* Stolen from gcc (gcc/config/arm/lib1funcs.asm) */
++#if defined(__ARM_ARCH_2__)
++# define __ARM_ARCH__ 2
++#endif
++
++#if defined(__ARM_ARCH_3__)
++# define __ARM_ARCH__ 3
++#endif
++
++#if defined(__ARM_ARCH_3M__) || defined(__ARM_ARCH_4__) \
++        || defined(__ARM_ARCH_4T__)
++# define __ARM_ARCH__ 4
++#endif
++
++#if defined(__ARM_ARCH_5__) || defined(__ARM_ARCH_5T__) \
++        || defined(__ARM_ARCH_5E__) || defined(__ARM_ARCH_5TE__) \
++        || defined(__ARM_ARCH_5TEJ__)
++# define __ARM_ARCH__ 5
++#endif
++
++#if defined(__ARM_ARCH_6__) || defined(__ARM_ARCH_6J__) \
++        || defined(__ARM_ARCH_6K__) || defined(__ARM_ARCH_6Z__) \
++        || defined(__ARM_ARCH_6ZK__) || defined(__ARM_ARCH_6T2__) \
++        || defined(__ARM_ARCH_6M__)
++# define __ARM_ARCH__ 6
++#endif
++
++#if defined(__ARM_ARCH_7__) || defined(__ARM_ARCH_7A__) \
++        || defined(__ARM_ARCH_7R__) || defined(__ARM_ARCH_7M__)
++# define __ARM_ARCH__ 7
++#endif
++
++#ifndef __ARM_ARCH__
++#error Unable to determine architecture.
++#endif
++
++
++
++#ifdef __ASSEMBLER__
++
++.macro	FUNC_START name
++	.text
++	.align	0
++	.global	\name
++	.type	\name, %function
++\name:
++.endm
++
++.macro	FUNC_START_WEAK name
++	.text
++	.align	0
++	.weak	\name
++	.type	\name, %function
++\name:
++.endm
++
++.macro	FUNC_END name
++	.size	\name, . - \name
++.endm
++
++.macro	RET
++#if (__ARM_ARCH__ > 4) || defined(__ARM_ARCH_4T__)
++	bx	lr
++#else
++	mov	pc, lr
++#endif
++.endm
++
++.macro	SWI_UNIFIED	name
++#ifdef __ARM_EABI__
++	b	__unified_syscall_swi
++#else
++	swi	\name
++	b	__unified_syscall
++#endif
++.endm
++
++.macro	SWI_UNIFIED4
++#ifdef __ARM_EABI__
++	b	__unified_syscall_swi
++#else
++	swi	\name
++	b	__unified_syscall4
++#endif
++.endm
++
++.macro	LOAD_ARG4_5
++#if defined(__ARM_ARCH_4__) || defined(__ARM_ARCH_4T__) || defined(__ARM_ARCH_5T__)
++	ldr	r4, [sp,#16]
++	ldr	r5, [sp,#20]
++#else
++	ldrd	r4, [sp,#16]
++#endif
++.endm
++
++#endif	/* __ASSEMBLER__ */
++
++#endif	/* H_DIETLIBC_ARM_FEATURES_H */
+diff --git a/arm/clone.S b/arm/clone.S
+index 4a4b2f4..b2ef450 100644
+--- a/arm/clone.S
++++ b/arm/clone.S
+@@ -1,11 +1,8 @@
+ 
+ #include <errno.h>
+ #include "syscalls.h"
++#include "arm-features.h"
+ 
+-	.text
+-	.weak 	clone
+-	.global __clone
+-	
+ @
+ @ Some slightly tricky stuff here... edit with care :-)
+ @
+@@ -19,9 +16,8 @@
+ @ ;  don't do this yet
+ @#define RESET_PID
+ 
+-		
+-clone:
+-__clone:
++FUNC_START_WEAK	clone
++FUNC_START	__clone
+ 	@ ; start with a sanity check
+ 	cmp	r0, #0
+ 	cmpne	r1, #0
+@@ -51,7 +47,8 @@ __clone:
+ 	beq	1f
+ 	ldmfd	sp!, {r4, r7}	
+ 	blt	__unified_syscall	@ (return code < 0): handle as an error
+-	bx	lr
++	RET
++
+ 1:	
+ #ifdef RESET_PID		
+ 	tst	ip, #CLONE_THREAD
+@@ -76,12 +73,13 @@ __clone:
+ 	
+ 	@ ; and we're done, passing return value through r0
+ 	b	_exit			@ branch to _exit (PIC safe)
++FUNC_END	__clone
++FUNC_END	clone
+ 
+-	
+ #else
+ 		
+-clone:
+-__clone:
++FUNC_START_WEAK	clone
++FUNC_START	__clone
+ 	movs	r12, r0			@ check function pointer
+ 	cmpne	r1, #0			@ if function check for stack pointer
+ 	moveq	r0, #-EINVAL		@ if one is not available set errno value
+@@ -101,5 +99,7 @@ __clone:
+ 	ldmia	sp!, { r0, pc } 	@ load function param and jump to thread function
+ 
+ 1:	b	_exit			@ branch to _exit (PIC safe)
++FUNC_END	__clone
++FUNC_END	clone
+ 
+ #endif
+diff --git a/arm/dyn_syscalls.S b/arm/dyn_syscalls.S
+index a4baf28..a8fe803 100644
+--- a/arm/dyn_syscalls.S
++++ b/arm/dyn_syscalls.S
+@@ -8,11 +8,15 @@
+ 
+ #include <dietfeatures.h>
+ #include "syscalls.h"
++#include "arm-features.h"
+ 
+-.text
+-__unified_syscall4:
++#ifdef __ARM_EABI__
++# error "dyn_syscall.S not ported for EABI yet"
++#endif
++
++FUNC_START	__unified_syscall4
+ 	ldmfd	sp!, {r4, r5, r6}
+-__unified_syscall:
++FUNC_START	__unified_syscall
+ 	cmn	r0, #4096
+ 	movcc	pc, lr
+ 	rsb	r1, r0, #0
+@@ -25,7 +29,9 @@ __unified_syscall:
+ 
+ 	mvn	r0, #0
+ #include "dietuglyweaks.h"
+-	mov	pc, lr
++	RET
++FUNC_END	__unified_syscall
++FUNC_END	__unified_syscall4
+ 
+ /* ok now include all syscalls.s (*.S) and sysdep *.S */
+ #include "mmap.S"
+@@ -280,9 +286,11 @@ __unified_syscall:
+ #include "../syscalls.s/fgetxattr.S"
+ 
+ /* other asm-files w.o. changes ... */
+-__exit:
++FUNC_START	__exit
+ 	swi	$__NR_exit
+ 	eor	pc,lr,lr
++FUNC_END	__exit
++
+ #define _exit __exit
+ #include "clone.S"
+ #undef _exit
+diff --git a/arm/mcount.S b/arm/mcount.S
+index a397e92..2e25adf 100644
+--- a/arm/mcount.S
++++ b/arm/mcount.S
+@@ -1,4 +1,4 @@
+-
++#include "arm-features.h"
+ @
+ @ mcount.S: ARM assembler implementation of mcount
+ @
+@@ -27,11 +27,7 @@
+ @
+ @
+ 
+-.text
+-
+-.global mcount
+-
+-mcount:
++FUNC_START	mcount
+     mov     ip,  sp
+     stmdb   sp!, { r0 - r3, fp, ip, lr, pc }    @ build stack frame
+     sub     fp,  ip, #4                         @ setup new fp
+@@ -43,4 +39,4 @@ mcount:
+     bl      __mcount                            @ call __mcount
+ 
+     ldmdb   fp,  { r0 - r3, fp, sp, pc }        @ restore context from stack frame and return.
+-
++FUNC_END	mcount
+diff --git a/arm/md5asm.S b/arm/md5asm.S
+index 370b503..14ba4b9 100644
+--- a/arm/md5asm.S
++++ b/arm/md5asm.S
+@@ -50,45 +50,35 @@
+ *****************************************************************************/
+ 
+ #include <endian.h>
++#include "arm-features.h"
+ 
+ #if (__BYTE_ORDER == __LITTLE_ENDIAN)
+ 
+-   .global MD5Init
+-   .global MD5Update
+-
+-   .text
+-#ifdef __ARM_EABI__
+-   .align  4
+-#else		
+-   .align  2
+-#endif
+-	
+     @ --
+     @ void MD5Init (MD5_CTX* context);
+     @ --
+ 
+-MD5Init:
+-
++FUNC_START	MD5Init
+     adr     r1, 1f                          @ r1 = base address of MD5InitData array
+     ldmia   r1, { r1 - r3, r12 }            @ load 4 elements from MD5InitData array
+     stmia   r0, { r1 - r3, r12 }            @ store into MD5 context->state[0..3]
+     mov     r1, #0
+     str     r1, [r0, #0x10]                 @ initial count[0] = 0
+     str     r1, [r0, #0x14]                 @ initial count[1] = 0
+-    mov     pc, lr                          @ return
++    RET
+ 
++   .align   3
+ 1: .word    0x67452301                      @ initial MD5 context->state[0]
+    .word    0xefcdab89                      @ initial MD5 context->state[1]
+    .word    0x98badcfe                      @ initial MD5 context->state[2]
+    .word    0x10325476                      @ initial MD5 context->state[3]
+-
++FUNC_END	MD5Init
+ 
+     @ --
+     @ void MD5Update (MD5_CTX* context, const uint8_t* buf, signed int len);
+     @ --
+ 
+-MD5Update:
+-
++FUNC_START	MD5Update
+     stmdb   sp!, { r4 - r8, lr }
+     add     r4, r0, #(6 * 4)                @ r4 = &context->buffer[0]
+     ldmdb   r4, { r0, r3 }                  @ r0 = count[0], r3 = count[1]
+@@ -122,12 +112,13 @@ MD5Update:
+     sub     r2, r8, r2
+ 2:  ldmia   sp!, { r4 - r8, lr }
+     b       memcpy                          @ classic tail-call optimisation...
+-
++FUNC_END	MD5Update
+ 
+     @ --
+     @ static void __MD5Transform (uint32_t *buf, const uint32_t *in, int repeat);
+     @ --
+ 
++   .align    3
+ MD5MagicData:
+ 
+ 1: .word     0xd76aa478, 0xe8c7b756, 0x242070db, 0xc1bdceee
+@@ -148,6 +139,7 @@ MD5MagicData:
+    .word     0xf7537e82, 0xbd3af235, 0x2ad7d2bb, 0xeb86d391, (17f-19f-4)
+    .word     0x6e4120A9, 0x20657264, 0x7543634d, 0x00796472, (19f-19f-4)
+ 
++   .align   2
+ __MD5Transform:
+ 
+     cmp     r2, #0
+diff --git a/arm/mmap.S b/arm/mmap.S
+deleted file mode 100644
+index d3ea131..0000000
+--- a/arm/mmap.S
++++ /dev/null
+@@ -1,42 +0,0 @@
+-#include <errno.h>
+-#include "syscalls.h"
+-
+-.text
+-
+-@
+-@ mmap takes 6 parameters - ie more than can be passed in registers via the
+-@ regular syscall interface. Instead, parameters are passed on the stack.
+-@
+-@ On entry, the compiler will have already placed the fifth and sixth
+-@ parameters on the stack - all we need do here is push the first four and
+-@ call the syscall.
+-@
+-
+-.global mmap
+-
+-#ifdef __ARM_EABI__
+-
+-mmap:
+-	str     r5, [sp, #-4]!
+-	ldr     r5, [sp, #8]
+-	str     r4, [sp, #-4]!
+-	ldr     r4, [sp, #8]
+-	mov	ip, r7
+-	mov	r7, #__NR_mmap2
+-	svc	0x00000000
+-	mov	r7, ip
+-	ldr     r4, [sp], #4
+-	ldr     r5, [sp], #4
+-	cmn	r0, #4096
+-	mov	pc, lr			@ return
+-
+-#else	
+-		
+-mmap:
+-	stmdb	sp!, {r0, r1, r2, r3}
+-	mov	r0, sp
+-	swi	__NR_mmap
+-	add	sp, sp, #16
+-	b	__unified_syscall
+-
+-#endif
+diff --git a/arm/setjmp.S b/arm/setjmp.S
+index 6b850d4..e7503b2 100644
+--- a/arm/setjmp.S
++++ b/arm/setjmp.S
+@@ -1,17 +1,20 @@
+-.text
+-.weak setjmp
+-setjmp:
+-.global __setjmp
+-__setjmp:
++#include "arm-features.h"
++
++FUNC_START_WEAK	setjmp
++FUNC_START	__setjmp
+ 	mov	r1, #0
+-.global __sigsetjmp
+-__sigsetjmp:
+-.weak sigsetjmp
+-sigsetjmp:
++FUNC_END	__setjmp
++FUNC_END	setjmp
++
++FUNC_START_WEAK	sigsetjmp
++FUNC_START	__sigsetjmp
++	stmia	r0, {r4-r11, sp, lr}
+ #ifndef	__SOFTFP__
+-	sfm	f4, 4, [r0], #48
++	sfm	f4, 4, [r0, #10*4]
++#endif
++#ifdef __IWMMXT__
++#  warning "setjmp will not save iwmmxt coprocessor registers"
+ #endif
+-	stmia	r0, {r4-r11, sp, lr}
+-	sub	r0, r0, #48
+ 	b	__sigjmp_save
+-
++FUNC_END	__sigsetjmp
++FUNC_END	sigsetjmp
+diff --git a/arm/start.S b/arm/start.S
+index d68d49d..cfb298c 100644
+--- a/arm/start.S
++++ b/arm/start.S
+@@ -1,23 +1,11 @@
+ 
+ #include "dietfeatures.h"
+ #include "syscalls.h"
++#include "arm-features.h"
+ 
+-	.text
+ #ifdef __ARM_EABI__
+-	.align 4
+-#else
+-	.align 2
+-#endif
+-	
+-	.global _start
+-	.weak 	exit
+-	.global _exit
+-
+-
+-#ifdef __ARM_EABI__
+-
+-_start:
+ 
++FUNC_START	_start
+ 	mov	fp, #0			@ clear the frame pointer
+ 	ldr	a1, [sp]		@ argc
+ 	add	a2, sp, #4		@ argv
+@@ -25,6 +13,17 @@ _start:
+ 	add	a3, a2, a1, lsl #2	@ &argv[argc]
+ 	add	a3, a3, #4		@ envp	
+ 	str	a3, [ip, #0]		@ environ = envp
++
++#ifdef WANT_ELFINFO
++	mov	r6, a3			@ work on a copy of a3 so that common
++					@ 'main(argc, argv, envp)' function
++					@ stays valid
++1:	ldr	r5, [r6], #4		@ load *envp and increment it
++	cmp	r5, #0			@ read value==0?
++	bne	1b
++	str	r6, [ip, #4]		@ __elfinfo = envp
++#endif
++
+ 	bl	main
+ 		
+ @
+@@ -32,21 +31,22 @@ _start:
+ @ We need to branch to 'exit' in case we have linked with 'atexit'.
+ @
+ 	bl	exit
++FUNC_END	_start
+ 
+-exit:
+-_exit:
+-
++FUNC_START	_exit
++FUNC_START_WEAK	exit
+ 	mov	r7, #__NR_exit		
+ 	swi	0			@ never returns.
+ 
++	.align	2
+ .L3:	.word 	environ
+-
++FUNC_END	exit
++FUNC_END	_exit
+ 	
+ #else	
+ 
+ 	
+-_start:
+-
++FUNC_START	_start
+ #ifdef WANT_DYNAMIC
+ 	mov	a4, a1			@ save dynamic ld.so _fini
+ #endif
+@@ -59,11 +59,25 @@ _start:
+ #ifdef __DYN_LIB
+ 	ldr	sl, .L4
+ 1:	add	sl, pc, sl
+-	str	a3, [sl, ip]		@ environ = envp
++	str	a3, [ip, sl]!		@ environ = envp; ip = GOT(environ)
+ #else
+ 	str	a3, [ip, #0]		@ environ = envp
+ #endif
+ 
++#ifdef WANT_ELFINFO
++	mov	r6, a3			@ work on a copy of a3 so that common
++					@ 'main(argc, argv, envp)' function
++					@ stays valid
++1:	ldr	r5, [r6], #4		@ load *envp and increment it
++	cmp	r5, #0			@ read value==0?
++	bne	1b
++#ifdef __DYN_LIB
++	str	r6, [ip, sl]		@ __elfinfo = envp
++#else
++	str	r6, [ip, #4]		@ __elfinfo = envp
++#endif
++#endif
++
+ #ifdef PROFILING
+ 	stmdb	sp!, { r0 - r3 }
+ 	ldr	r0, .L5
+@@ -83,18 +97,21 @@ _start:
+ @ We need to branch to 'exit' in case we have linked with 'atexit'.
+ @
+ 	bl	exit
++FUNC_END	_start
+ 
+-exit:
+-_exit:
+-
++FUNC_START	_exit
++FUNC_START_WEAK	exit
+ #ifdef PROFILING
+ 	mov	r4, r0			@ save a copy of exit status
+ 	bl	_stop_monitor
+ 	mov	r0, r4
+ #endif
+ 	swi	$__NR_exit		@ never returns.
++FUNC_END	exit
++FUNC_END	_exit
+ 
+ 
++	.align	2
+ #ifdef __DYN_LIB
+ .L3:	.word 	environ(GOT)
+ .L4:	.word 	_GLOBAL_OFFSET_TABLE_-(1b+8)
+diff --git a/arm/strcpy.S b/arm/strcpy.S
+index 20e1029..7a86562 100644
+--- a/arm/strcpy.S
++++ b/arm/strcpy.S
+@@ -1,10 +1,7 @@
+ #include "dietfeatures.h"
++#include "arm-features.h"
+ 
+-.text
+-	.align	2
+-	.global	strcpy
+-
+-strcpy:
++FUNC_START	strcpy
+ #ifndef WANT_SMALL_STRING_ROUTINES
+ 	mov	ip, r0
+ 	ands	r2, r1, #3
+@@ -61,6 +58,5 @@ strcpy:
+ 	ldrneb	r2, [r1], #1
+ #endif
+ 	bne	.Lloop
+-	mov	pc, lr
+-.Lfe1:
+-	.size	 strcpy,.Lfe1-strcpy
++	RET
++FUNC_END	strcpy
+diff --git a/arm/strlen.S b/arm/strlen.S
+index 6b2b459..a6af8f0 100644
+--- a/arm/strlen.S
++++ b/arm/strlen.S
+@@ -1,12 +1,7 @@
+ #include "dietfeatures.h"
++#include "arm-features.h"
+ 
+-	.text
+-	.align	2
+-
+-	.global	strlen
+-
+-strlen:
+-
++FUNC_START	strlen
+ #if 0
+ 	teq	a1, #0			@ is string pointer NULL ??
+ 	moveq	pc, lr			@ if so, return 0
+@@ -61,12 +56,10 @@ strlen:
+ 	sub	a1, a1, a2
+ #endif
+ 
+-	mov	pc, lr
++	RET
+ 
+ #ifndef WANT_SMALL_STRING_ROUTINES
+ .Lmagic:
+ 	.word	0x01010101
+ #endif
+-
+-.Lstrlen:
+-	.size	strlen,.Lstrlen-strlen
++FUNC_END	strlen
+diff --git a/arm/syscalls.h b/arm/syscalls.h
+index d092f55..21a6dcc 100644
+--- a/arm/syscalls.h
++++ b/arm/syscalls.h
+@@ -700,9 +700,9 @@
+ #define __ARGS_getpeername		0
+ #define __ARGS_socketpair		0
+ #define __ARGS_send			0
+-#define __ARGS_sendto			0
++#define __ARGS_sendto			6
+ #define __ARGS_recv			0
+-#define __ARGS_recvfrom			0
++#define __ARGS_recvfrom			6
+ #define __ARGS_shutdown			0
+ #define __ARGS_setsockopt		0
+ #define __ARGS_getsockopt		0
+@@ -771,70 +771,30 @@
+ 
+ #ifdef __ASSEMBLER__
+ 
+-#ifdef __ARM_EABI__
++#include "arm-features.h"
+ 
+ #define syscall_weak(name,wsym,sym) __syscall_weak __NR_##name, wsym, sym, __ARGS_##name
+ .macro __syscall_weak name wsym sym typ
+-.text
+-.type \wsym,function
+-.weak \wsym
+-\wsym:
+-.type \sym,function
+-.global \sym
+-\sym:
+-        stmfd	sp!,{r4,r5,r7,lr}
+-	ldr	r4, [sp,#16]
+-	ldr	r5, [sp,#20]
+-        ldr     r7, =\name
+-	swi	0
+-	b	__unified_syscall
++FUNC_START_WEAK	\wsym
++__syscall	\name, \sym, \typ
++FUNC_END	\wsym
+ .endm
+ 
++#ifdef __ARM_EABI__
+ 
+ #define syscall(name,sym) __syscall __NR_##name, sym, __ARGS_##name
+ .macro __syscall name sym typ
+-.text
+-.type \sym,function
+-.global \sym
+-\sym:
+-        stmfd	sp!,{r4,r5,r7,lr}
+-	ldr	r4, [sp,#16]
+-	ldr	r5, [sp,#20]
+-        ldr     r7, =\name
+-	swi	0
+-	b	__unified_syscall
++FUNC_START	\sym
++        ldr     ip, =\name
++	b	__unified_syscall_swi
++FUNC_END	\sym
+ .endm
+ 
+ #else
+ 
+-#define syscall_weak(name,wsym,sym) __syscall_weak $__NR_##name, wsym, sym, __ARGS_##name
+-.macro __syscall_weak name wsym sym typ
+-.text
+-.type \wsym,function
+-.weak \wsym
+-\wsym:
+-.type \sym,function
+-.global \sym
+-\sym:
+-.ifgt \typ
+-	mov	ip, sp
+-	stmfd	sp!,{r4, r5, r6}
+-	ldmia	ip, {r4, r5, r6}
+-.endif
+-	swi	\name
+-.ifgt \typ
+-	b	__unified_syscall4
+-.else
+-	b	__unified_syscall
+-.endif
+-.endm
+-
+ #define syscall(name,sym) __syscall $__NR_##name, sym, __ARGS_##name
+ .macro __syscall name sym typ
+-.text
+-.type \sym,function
+-.global \sym
+-\sym:
++FUNC_START	\sym
+ .ifgt \typ
+ 	mov	ip, sp
+ 	stmfd	sp!,{r4, r5, r6}
+@@ -846,6 +806,7 @@
+ .else
+ 	b	__unified_syscall
+ .endif
++FUNC_END	\sym
+ .endm
+ 
+ #endif
+diff --git a/arm/unified.S b/arm/unified.S
+index e6ea3f6..bd5b987 100644
+--- a/arm/unified.S
++++ b/arm/unified.S
+@@ -1,21 +1,28 @@
+ 
+ #include <dietfeatures.h>
++#include "arm-features.h"
+ 
+-	.text
+ #ifdef __ARM_EABI__
+-	.align 4
+-#else
+-	.align 2
+-#endif 	
+-	.global __unified_syscall
+-	.global __unified_syscall4
+-
+ 
+-#ifdef __ARM_EABI__
++/* expects:
++ * r0-r3 ... syscall arguments 0-3
++ * ip    ... syscall number
++ */
++FUNC_START	__unified_syscall_swi
++	.hidden	__unified_syscall_swi
++        stmfd	sp!,{r4,r5,r7,lr}
++	mov	r7, ip
++	LOAD_ARG4_5
++	swi	0
++	/* fallthrough to __unified4_syscall */
++FUNC_END	__unified_syscall_swi
+ 
+-__unified_syscall4:
+-__unified_syscall:
+-	
++/* expects:
++ * r0    ... syscall return value
++ * original r4-r7 + lr on stack
++ */
++FUNC_START	__unified_syscall
++	.hidden	__unified_syscall
+         cmn     r0, #4096
+         rsbcs   r2, r0, #0
+         ldrcs   r3, 1f
+@@ -25,17 +32,18 @@ __unified_syscall:
+ 	.balign 4
+ 1:
+         .word   errno
++FUNC_END	__unified_syscall
+ 	
+-/* here we go and "reuse" the return for weak-void functions */
+ #include "dietuglyweaks.h"
+ 
+-	mov	pc, lr			@ return
++	RET
+ 
+ #else	
+ 	
+-__unified_syscall4:
++FUNC_START	__unified_syscall4
+ 	ldmia	sp!, {r4, r5, r6}
+-__unified_syscall:
++
++FUNC_START	__unified_syscall
+ 	cmn	r0, #4096
+ 	movcc	pc, lr			@ return value comes direct from kernel.
+ 
+@@ -53,10 +61,13 @@ __unified_syscall:
+ /* here we go and "reuse" the return for weak-void functions */
+ #include "dietuglyweaks.h"
+ 
+-	mov	pc, lr			@ return
++	RET
+ 
+ #ifndef WANT_THREAD_SAFE
++	.align	2
+ .L0:	.long 	errno
+ #endif
++FUNC_END	__unified_syscall
++FUNC_END	__unified_syscall4
+ 
+ #endif
+diff --git a/arm/waitpid.S b/arm/waitpid.S
+index 2c3a75b..0d099a8 100644
+--- a/arm/waitpid.S
++++ b/arm/waitpid.S
+@@ -1,15 +1,8 @@
+-.text
+-#ifdef __ARM_EABI__
+-.align	4
+-#else	
+-.align	2
+-#endif
+-.weak	waitpid
+-.type	waitpid, %function
+-waitpid:
+-.global	__libc_waitpid
+-.type	__libc_waitpid, %function
+-__libc_waitpid:
++#include "arm-features.h"
++
++FUNC_START_WEAK	waitpid
++FUNC_START	__libc_waitpid
+ 	mov	r3, #0
+ 	b	wait4
+-	.size	waitpid, .-waitpid
++FUNC_END	__libc_waitpid
++FUNC_END	waitpid
+diff --git a/dietdirent.h b/dietdirent.h
+index dbd7206..3e823f8 100644
+--- a/dietdirent.h
++++ b/dietdirent.h
+@@ -1,8 +1,12 @@
+ #include <sys/shm.h>
+ 
++#include "dietpagesize.h"
++
+ struct __dirstream {
+   int fd;
+-  char buf[PAGE_SIZE-(sizeof (int)*3)];
+   unsigned int num;
+   unsigned int cur;
++  char buf[] __attribute__((__aligned__(8)));
+ };				/* stream data from opendir() */
++
++#define __DIRSTREAM_BUF_SIZE	(__DIET_PAGE_SIZE - offsetof(struct __dirstream, buf))
+diff --git a/dietelfinfo.h b/dietelfinfo.h
+new file mode 100644
+index 0000000..de8c717
+--- /dev/null
++++ b/dietelfinfo.h
+@@ -0,0 +1,20 @@
++#include "dietfeatures.h"
++
++#ifdef WANT_ELFINFO
++#include <elf.h>
++#include <endian.h>
++#include <stdint.h>
++
++/* TODO: exported interface from <linux/elf.h> has been changed in 2.6.25 so
++ * the 'elf_addr_t' type is not available anymore. Hence, derive it from
++ * __WORDSIZE__. */
++
++#if __WORDSIZE == 64
++typedef uint64_t	__diet_elf_addr_t;
++#elif __WORDSIZE == 32
++typedef uint32_t	__diet_elf_addr_t;
++#endif
++
++__diet_elf_addr_t const *	__get_elf_aux_value(unsigned int tag)
++	__attribute__((__visibility__("hidden"),__const__)) __pure;
++#endif
+diff --git a/dietfeatures.h b/dietfeatures.h
+index dcdda39..0d44425 100644
+--- a/dietfeatures.h
++++ b/dietfeatures.h
+@@ -138,6 +138,16 @@
+ #define WANT_SSP
+ #endif
+ 
++/* Some platforms like x86_64, ppc* or mips do not have a fixed PAGE_SIZE.
++ * Select WANT_DYN_PAGESIZE to detect the current PAGE_SIZE at runtime. Else,
++ * define WANT_STATIC_PAGESIZE to a proper value (must be a power of 2)
++ * matching the configured pagesize of the kernel where your binaries are
++ * running on.
++ *
++ * Selecting WANT_DYN_PAGESIZE enlarges the startup code by around 1-3
++ * instructions and might add an additional __elfinfo symbol */
++#define WANT_DYN_PAGESIZE
++/* #define WANT_STATIC_PAGESIZE 0x10000UL */
+ 
+ 
+ /* stop uncommenting here ;-) */
+@@ -169,4 +179,8 @@
+ #endif
+ #endif
+ 
++#ifdef WANT_DYN_PAGESIZE
++#define WANT_ELFINFO
++#endif
++
+ #endif
+diff --git a/dietpagesize.h b/dietpagesize.h
+new file mode 100644
+index 0000000..8ce6ce7
+--- /dev/null
++++ b/dietpagesize.h
+@@ -0,0 +1,31 @@
++#ifndef H_DIETLIBC_DIETPAGESIZE_H
++#define H_DIETLIBC_DIETPAGESIZE_H
++
++#include <strings.h>
++#include "dietfeatures.h"
++
++extern size_t __libc_getpagesize(void) __attribute__((__const__)) __pure;
++
++#if defined(WANT_STATIC_PAGESIZE)
++#  define __DIET_PAGE_SIZE_PREDEF	(WANT_STATIC_PAGESIZE)
++#  define __DIET_PAGE_SHIFT_PREDEF	(ffs(__DIET_PAGE_SIZE_PREDEF)-1)
++#elif defined(__alpha__) || defined(__sparc__)
++#  define __DIET_PAGE_SIZE_PREDEF	(8192UL)
++#  define __DIET_PAGE_SHIFT_PREDEF	(13)
++#elif defined(__powerpc64__)
++#  define __DIET_PAGE_SIZE_PREDEF	(65536UL)
++#  define __DIET_PAGE_SHIFT_PREDEF	(16)
++#else
++#  define __DIET_PAGE_SIZE_PREDEF	(4096UL)
++#  define __DIET_PAGE_SHIFT_PREDEF	(12)
++#endif
++
++#ifdef WANT_DYN_PAGESIZE
++#  define __DIET_PAGE_SIZE	(__libc_getpagesize())
++#  define __DIET_PAGE_SHIFT	(ffs(__DIET_PAGE_SIZE)-1)
++#else
++#  define __DIET_PAGE_SIZE	__DIET_PAGE_SIZE_PREDEF
++#  define __DIET_PAGE_SHIFT	__DIET_PAGE_SHIFT_PREDEF
++#endif
++
++#endif	/* H_DIETLIBC_DIETPAGESIZE_H */
+diff --git a/dynlinker/ldso_start.S b/dynlinker/ldso_start.S
+index ca278d7..da36845 100644
+--- a/dynlinker/ldso_start.S
++++ b/dynlinker/ldso_start.S
+@@ -86,6 +86,15 @@ __environ:
+ 	.long 0
+ #endif
+ 
++/* __elfinfo must follow __environ immediately */
++.global __elfinfo
++__elfinfo:
++#if __WORDSIZE == 64
++	.quad 0
++#else
++	.long 0
++#endif
++
+ .global fini_entry
+ fini_entry:
+ 	.long 0
+diff --git a/i386/start.S b/i386/start.S
+index 361af3d..b681d05 100644
+--- a/i386/start.S
++++ b/i386/start.S
+@@ -20,12 +20,18 @@ _start:
+ 	PIC_INIT			/* non-PIC: this is an empty line */
+ 	PUT_VAR %esi, environ, %ecx	/* non-PIC: movl %esi,environ */
+ 
+-#ifdef WANT_SYSENTER
++#if defined(WANT_ELFINFO) || defined(WANT_SYSENTER)
+ /* skip environment, scan for NULL */
+ 1:
+ 	lodsl
+ 	testl	%eax,%eax
+ 	jnz	1b
++#  ifdef WANT_ELFINFO
++	PUT_VAR %esi, __elfinfo, %ecx
++#  endif
++#endif
++
++#ifdef WANT_SYSENTER
+ /* The ELF auxvec follows the environment, consists of key/value pairs.
+    We are looking for key 32, which stands for the vsyscall page */
+ 1:
+diff --git a/ia64/start.S b/ia64/start.S
+index 50fd015..c917721 100644
+--- a/ia64/start.S
++++ b/ia64/start.S
+@@ -40,6 +40,16 @@ _start:
+ 	;;
+ 	st8  [r14] = out2           /* store envp in environ */
+ 
++#ifdef WANT_ELFINFO
++#  warning "MAKE ME IE64 CODE!"
++1:	ld8	r9 = [out2], 8	    /* load *envp and increment it */
++	orr	r9 = r9, r9	    /* test for NULL */
++	bne	1b
++
++	adds r14 = 8, r14	    /* __elfinfo = environ + 8 */
++	st8  [r14] = out2           /* store envp in __elfinfo */
++#endif
++
+ #ifdef WANT_DYNAMIC
+ /* FIXME: dl_init parameter ??? */
+ 	br.call.sptk.few rp = _dyn_start
+diff --git a/include/paths.h b/include/paths.h
+index 553b4fa..9bf216f 100644
+--- a/include/paths.h
++++ b/include/paths.h
+@@ -2,7 +2,7 @@
+ #define _PATHS_H
+ 
+ #define _PATH_BSHELL "/bin/sh"
+-#define _PATH_DEFPATH "/bin:/usr/bin:"
++#define _PATH_DEFPATH "/bin:/usr/bin"
+ 
+ #define _PATH_DEVNULL "/dev/null"
+ 
+diff --git a/include/stdlib.h b/include/stdlib.h
+index 4976f86..1dd10ff 100644
+--- a/include/stdlib.h
++++ b/include/stdlib.h
+@@ -28,8 +28,12 @@ long double strtold(const char *nptr, char **endptr) __THROW;
+ long int strtol(const char *nptr, char **endptr, int base) __THROW;
+ unsigned long int strtoul(const char *nptr, char **endptr, int base) __THROW;
+ 
++/* HACK: used flags in __dtostr
++     0x01 ... 'g'
++     0x02 ... uppercase
++   Define some constants somewhere... */
+ extern int __ltostr(char *s, unsigned int size, unsigned long i, unsigned int base, int UpCase) __THROW;
+-extern int __dtostr(double d,char *buf,unsigned int maxlen,unsigned int prec,unsigned int prec2,int g) __THROW;
++extern int __dtostr(double d,char *buf,unsigned int maxlen,unsigned int prec,unsigned int prec2,int flags) __THROW;
+ 
+ #if !defined(__STRICT_ANSI__) || __STDC_VERSION__ + 0 >= 199900L
+ __extension__ long long int strtoll(const char *nptr, char **endptr, int base) __THROW;
+@@ -43,7 +47,7 @@ double atof(const char *nptr) __THROW;
+ __extension__ long long int atoll(const char *nptr);
+ 
+ void exit(int status) __THROW __attribute__((__noreturn__));
+-void abort(void) __THROW;
++void abort(void) __THROW __attribute__((__noreturn__));
+ 
+ extern int rand(void) __THROW;
+ extern int rand_r(unsigned int *seed) __THROW;
+diff --git a/include/sys/shm.h b/include/sys/shm.h
+index 9b2d04d..70bb17e 100644
+--- a/include/sys/shm.h
++++ b/include/sys/shm.h
+@@ -60,15 +60,6 @@ struct shm_info {
+   unsigned long swap_successes;
+ };
+ 
+-#if defined(__i386__) || defined(__mips__) || defined(__arm__) || defined(__powerpc__) || defined (__powerpc64__) || defined(__s390__) || defined(__hppa__) || defined(__x86_64__) || defined(__ia64__)
+-#define PAGE_SIZE 4096UL
+-#define PAGE_SHIFT 12
+-#elif defined(__alpha__) || defined(__sparc__)
+-/* sun4* has 4k except sun4 architecture, sparc64 has 8k */
+-#define PAGE_SIZE 8192UL
+-#define PAGE_SHIFT 13
+-#endif
+-
+ extern int shmget(key_t key, int size, int shmflg) __THROW;
+ extern void *shmat(int shmid, const void *shmaddr, int shmflg) __THROW;
+ extern int shmdt (const void *shmaddr) __THROW;
+diff --git a/lib/__dtostr.c b/lib/__dtostr.c
+index 1d082e3..bc61200 100644
+--- a/lib/__dtostr.c
++++ b/lib/__dtostr.c
+@@ -5,13 +5,15 @@
+ 
+ static int copystring(char* buf,int maxlen, const char* s) {
+   int i;
+-  for (i=0; i<3&&i<maxlen; ++i)
++  for (i=0; i<maxlen; ++i) {
+     buf[i]=s[i];
+-  if (i<maxlen) { buf[i]=0; ++i; }
++    if (!s[i])
++      break;
++  }
+   return i;
+ }
+ 
+-int __dtostr(double d,char *buf,unsigned int maxlen,unsigned int prec,unsigned int prec2,int g) {
++int __dtostr(double d,char *buf,unsigned int maxlen,unsigned int prec,unsigned int prec2,int flags) {
+ #if 1
+   union {
+     unsigned long long l;
+@@ -35,8 +37,12 @@ int __dtostr(double d,char *buf,unsigned int maxlen,unsigned int prec,unsigned i
+   double tmp;
+   char *oldbuf=buf;
+ 
+-  if ((i=isinf(d))) return copystring(buf,maxlen,i>0?"inf":"-inf");
+-  if (isnan(d)) return copystring(buf,maxlen,"nan");
++  if (isinf(d))
++    return copystring(buf,maxlen,
++		      (d<0)?
++		      (flags&0x02?"-INF":"-inf"):
++		      (flags&0x02?"INF":"inf"));
++  if (isnan(d)) return copystring(buf,maxlen,flags&0x02?"NAN":"nan");
+   e10=1+(long)(e*0.30102999566398119802); /* log10(2) */
+   /* Wir iterieren von Links bis wir bei 0 sind oder maxlen erreicht
+    * ist.  Wenn maxlen erreicht ist, machen wir das nochmal in
+@@ -126,7 +132,7 @@ int __dtostr(double d,char *buf,unsigned int maxlen,unsigned int prec,unsigned i
+   if (prec2 || prec>(unsigned int)(buf-oldbuf)+1) {	/* more digits wanted */
+     if (!maxlen) return 0; --maxlen;
+     *buf='.'; ++buf;
+-    if (g) {
++    if ((flags & 0x01)) {
+       if (prec2) prec=prec2;
+       prec-=buf-oldbuf-1;
+     } else {
+diff --git a/lib/__get_elf_aux_value.c b/lib/__get_elf_aux_value.c
+new file mode 100644
+index 0000000..8a2e3bc
+--- /dev/null
++++ b/lib/__get_elf_aux_value.c
+@@ -0,0 +1,14 @@
++#include <stdlib.h>
++#include "../dietelfinfo.h"
++
++__diet_elf_addr_t const *__get_elf_aux_value(unsigned int tag)
++{
++  extern __diet_elf_addr_t const * const	__elfinfo;
++  __diet_elf_addr_t const			*aux_ptr;
++
++  for (aux_ptr = __elfinfo; aux_ptr[0]!=AT_NULL; aux_ptr += 2)
++    if (aux_ptr[0]==tag)
++      return aux_ptr+1;
++
++  return NULL;
++}
+diff --git a/lib/__nice.c b/lib/__nice.c
+index d751104..8e205c0 100644
+--- a/lib/__nice.c
++++ b/lib/__nice.c
+@@ -1,9 +1,13 @@
+ #include "syscalls.h"
+-#include <sys/time.h>
++#include <errno.h>
+ #include <sys/resource.h>
+ 
+ #ifndef __NR_nice
+ int nice(int i) {
+-  return setpriority(PRIO_PROCESS,0,getpriority(PRIO_PROCESS,0)+i);
++  if (setpriority(PRIO_PROCESS,0,getpriority(PRIO_PROCESS,0)+i) == -1) {
++    errno=EPERM;
++    return -1;
++  }
++  return getpriority(PRIO_PROCESS,0);
+ }
+ #endif
+diff --git a/lib/__utime.c b/lib/__utime.c
+index e013265..0e4d0df 100644
+--- a/lib/__utime.c
++++ b/lib/__utime.c
+@@ -1,7 +1,10 @@
+-#include <utime.h>
+ #include <syscalls.h>
+ 
+ #ifndef __NR_utime
++#define _BSD_SOURCE
++#include <utime.h>
++#include <sys/time.h>
++
+ int utime(const char *filename, const struct utimbuf *times)
+ {
+   if (times == NULL)
+diff --git a/lib/__v_printf.c b/lib/__v_printf.c
+index 36202f5..964c005 100644
+--- a/lib/__v_printf.c
++++ b/lib/__v_printf.c
+@@ -4,6 +4,7 @@
+ #include <stdlib.h>
+ #include <string.h>
+ #include <errno.h>
++#include <math.h>
+ #include "dietstdio.h"
+ #include "dietwarning.h"
+ 
+@@ -346,45 +347,49 @@ num_printf:
+ #ifdef WANT_FLOATING_POINT_IN_PRINTF
+       /* print a floating point value */
+       case 'f':
++      case 'F':
+       case 'g':
++      case 'G':
+ 	{
+-	  int g=(ch=='g');
++	  int flags=(((ch&0x5f)=='G') ? 0x01 : 0x00) | ((ch&0x20) ? 0x00 : 0x02);
+ 	  double d=va_arg(arg_ptr,double);
+ 	  s=buf+1;
+ 	  if (width==0) width=1;
+ 	  if (!flag_dot) preci=6;
+ 	  if (flag_sign || d < +0.0) flag_in_sign=1;
+ 
+-	  sz=__dtostr(d,s,sizeof(buf)-1,width,preci,g);
+-
+-	  if (flag_dot) {
+-	    char *tmp;
+-	    if ((tmp=strchr(s,'.'))) {
+-	      if (preci || flag_hash) ++tmp;
+-	      while (preci>0 && *++tmp) --preci;
+-	      *tmp=0;
+-	    } else if (flag_hash) {
+-	      s[sz]='.';
+-	      s[++sz]='\0';
++	  sz=__dtostr(d,s,sizeof(buf)-1,width,preci,flags);
++
++	  if (!isnan(d) && !isinf(d)) {		/* skip NaN + INF values */
++	    if (flag_dot) {
++	      char *tmp;
++	      if ((tmp=strchr(s,'.'))) {
++		if (preci || flag_hash) ++tmp;
++		while (preci>0 && *++tmp) --preci;
++		*tmp=0;
++	      } else if (flag_hash) {
++		s[sz]='.';
++		s[++sz]='\0';
++	      }
+ 	    }
+-	  }
+ 
+-	  if (g) {
+-	    char *tmp,*tmp1;	/* boy, is _this_ ugly! */
+-	    if ((tmp=strchr(s,'.'))) {
+-	      tmp1=strchr(tmp,'e');
+-	      while (*tmp) ++tmp;
+-	      if (tmp1) tmp=tmp1;
+-	      while (*--tmp=='0') ;
+-	      if (*tmp!='.') ++tmp;
+-	      *tmp=0;
+-	      if (tmp1) strcpy(tmp,tmp1);
++	    if ((flags&0x01)) {
++	      char *tmp,*tmp1;	/* boy, is _this_ ugly! */
++	      if ((tmp=strchr(s,'.'))) {
++		tmp1=strchr(tmp,'e');
++		while (*tmp) ++tmp;
++		if (tmp1) tmp=tmp1;
++		while (*--tmp=='0') ;
++		if (*tmp!='.') ++tmp;
++		*tmp=0;
++		if (tmp1) strcpy(tmp,tmp1);
++	      }
+ 	    }
+-	  }
+ 	  
+-	  if ((flag_sign || flag_space) && d>=0) {
+-	    *(--s)=(flag_sign)?'+':' ';
+-	    ++sz;
++	    if ((flag_sign || flag_space) && d>=0) {
++	      *(--s)=(flag_sign)?'+':' ';
++	      ++sz;
++	    }
+ 	  }
+ 	  
+ 	  sz=strlen(s);
+diff --git a/lib/alloc.c b/lib/alloc.c
+index 9690565..3f0cedb 100644
+--- a/lib/alloc.c
++++ b/lib/alloc.c
+@@ -18,8 +18,7 @@
+ #include <stdlib.h>
+ #include <string.h>
+ 
+-#include <sys/shm.h>	/* for PAGE_SIZE */
+-
++#include "../dietpagesize.h"
+ 
+ /* -- HELPER CODE --------------------------------------------------------- */
+ 
+@@ -39,7 +38,7 @@ typedef struct {
+ #define BLOCK_START(b)	(((void*)(b))-sizeof(__alloc_t))
+ #define BLOCK_RET(b)	(((void*)(b))+sizeof(__alloc_t))
+ 
+-#define MEM_BLOCK_SIZE	PAGE_SIZE
++#define MEM_BLOCK_SIZE	__DIET_PAGE_SIZE
+ #define PAGE_ALIGN(s)	(((s)+MEM_BLOCK_SIZE-1)&(unsigned long)(~(MEM_BLOCK_SIZE-1)))
+ 
+ /* a simple mmap :) */
+@@ -66,7 +65,9 @@ static __alloc_t* __small_mem[8];
+ 
+ #define FIRST_SMALL(p)		(((unsigned long)(p))&(~(MEM_BLOCK_SIZE-1)))
+ 
+-static inline int __ind_shift() { return (MEM_BLOCK_SIZE==4096)?4:5; }
++static inline int __ind_shift() {
++	return __DIET_PAGE_SHIFT - sizeof(__small_mem)/sizeof(__small_mem[0]);
++}
+ 
+ static size_t REGPARM(1) get_index(size_t _size) {
+   register size_t idx=0;
+diff --git a/lib/closedir.c b/lib/closedir.c
+index 3aade81..21de234 100644
+--- a/lib/closedir.c
++++ b/lib/closedir.c
+@@ -4,8 +4,10 @@
+ #include <dirent.h>
+ #include <stdlib.h>
+ 
++#include "../dietpagesize.h"
++
+ int closedir (DIR* d) {
+   int res=close(d->fd);
+-  munmap (d, PAGE_SIZE);
++  munmap (d, __DIET_PAGE_SIZE);
+   return res;
+ }
+diff --git a/lib/mmap64.c b/lib/mmap64.c
+index 0ab29a6..5012394 100644
+--- a/lib/mmap64.c
++++ b/lib/mmap64.c
+@@ -4,16 +4,18 @@
+ #include <syscalls.h>
+ #include <errno.h>
+ 
++#include "../dietpagesize.h"
++
+ #ifdef __NR_mmap2
+ void*__mmap2(void*start,size_t length,int prot,int flags,int fd,off_t pgoffset);
+ 
+ void*__libc_mmap64(void*addr,size_t len,int prot,int flags,int fd,off64_t offset);
+ void*__libc_mmap64(void*addr,size_t len,int prot,int flags,int fd,off64_t offset) {
+-  if (offset&(PAGE_SIZE-1)) {
++  if (offset&(__DIET_PAGE_SIZE)) {
+     errno=-EINVAL;
+     return MAP_FAILED;
+   }
+-  return __mmap2(addr,len,prot,flags,fd,offset>>PAGE_SHIFT);
++  return __mmap2(addr,len,prot,flags,fd,offset>>__DIET_PAGE_SHIFT);
+ }
+ 
+ void*mmap64(void*addr,size_t len,int prot,int flags,int fd,off64_t offset)
+diff --git a/lib/opendir.c b/lib/opendir.c
+index 2530d1a..847685e 100644
+--- a/lib/opendir.c
++++ b/lib/opendir.c
+@@ -5,6 +5,8 @@
+ #include <stdlib.h>
+ #include <fcntl.h>
+ 
++#include "../dietpagesize.h"
++
+ DIR*  opendir ( const char* name ) {
+   int   fd = open (name, O_RDONLY | O_DIRECTORY);
+   DIR*  t  = NULL;
+@@ -12,7 +14,7 @@ DIR*  opendir ( const char* name ) {
+   if ( fd >= 0 ) {
+     if (fcntl (fd, F_SETFD, FD_CLOEXEC) < 0)
+       goto lose;
+-    t = (DIR *) mmap (NULL, PAGE_SIZE, PROT_READ | PROT_WRITE, 
++    t = (DIR *) mmap (NULL, __DIET_PAGE_SIZE, PROT_READ | PROT_WRITE,
+ 		MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+     if (t == MAP_FAILED)
+ lose:
+diff --git a/lib/readdir.c b/lib/readdir.c
+index ed885a5..d80a406 100644
+--- a/lib/readdir.c
++++ b/lib/readdir.c
+@@ -5,7 +5,7 @@
+ 
+ struct dirent* readdir(DIR *d) {
+   if (!d->num || (d->cur += ((struct dirent*)(d->buf+d->cur))->d_reclen)>=d->num) {
+-    int res=getdents(d->fd,(struct dirent*)d->buf,sizeof (d->buf)-1);
++    int res=getdents(d->fd,(struct dirent*)d->buf,__DIRSTREAM_BUF_SIZE-1);
+     if (res<=0) return 0;
+     d->num=res; d->cur=0;
+   }
+diff --git a/lib/readdir64.c b/lib/readdir64.c
+index 924f0a8..06d073b 100644
+--- a/lib/readdir64.c
++++ b/lib/readdir64.c
+@@ -14,7 +14,7 @@
+ #ifndef WANT_LARGEFILE_BACKCOMPAT
+ struct dirent64* readdir64(DIR *d) {
+   if (!d->num || (d->cur += ((struct dirent64*)(d->buf+d->cur))->d_reclen)>=d->num) {
+-    int res=getdents64(d->fd,(struct dirent64*)d->buf, sizeof (d->buf)-1);
++    int res=getdents64(d->fd,(struct dirent64*)d->buf, __DIRSTREAM_BUF_SIZE-1);
+     if (res<=0) return 0;
+     d->num=res; d->cur=0;
+   }
+@@ -32,7 +32,7 @@ again:
+   if (!trygetdents64) {
+ #endif
+     if (!d->num || (d->cur += ((struct dirent*)(d->buf+d->cur))->d_reclen)>=d->num) {
+-      int res=getdents(d->fd,(struct dirent*)d->buf, sizeof (d->buf)-1);
++      int res=getdents(d->fd,(struct dirent*)d->buf, __DIRSTREAM_BUF_SIZE-1);
+       if (res<=0) return 0;
+       d->num=res; d->cur=0;
+     }
+@@ -46,7 +46,7 @@ again:
+ #ifdef __NR_getdents64
+   }
+   if (!d->num || (d->cur += ((struct dirent64*)(d->buf+d->cur))->d_reclen)>=d->num) {
+-    int res=getdents64(d->fd,(struct dirent64*)d->buf,sizeof (d->buf));
++    int res=getdents64(d->fd,(struct dirent64*)d->buf,__DIRSTREAM_BUF_SIZE);
+     if (res<=0) {
+       if (errno==ENOSYS) {
+ 	trygetdents64=0;
+diff --git a/lib/stack_smash_handler2.c b/lib/stack_smash_handler2.c
+index 9e85099..83c0cef 100644
+--- a/lib/stack_smash_handler2.c
++++ b/lib/stack_smash_handler2.c
+@@ -8,5 +8,16 @@ void __stack_chk_fail(void);
+  * diagnostics.  No more. :-( */
+ void __stack_chk_fail(void) {
+   __write2("smashed stack detected, program terminated.\n");
+-  _exit(127);
++
++  /* trigger a segfault which can be inspected within a debugger (inclusive
++   * stack-trace). 'abort(3)' at this place would be too heavy weighted.
++   *
++   * TODO: limit this to systems which are known to have an MMU (resp. is
++   * dietlibc with stack-protector used on systems without an MMU?)
++   */
++  *(char volatile *)0 = 0;
++  while (1) {
++    asm("");
++    __builtin_unreachable();
++  }
+ }
+diff --git a/lib/stackgap.c b/lib/stackgap.c
+index 6f1f5c4..1a3af01 100644
+--- a/lib/stackgap.c
++++ b/lib/stackgap.c
+@@ -16,6 +16,7 @@
+ #include <elf.h>
+ #include <stdlib.h>
+ #include "dietfeatures.h"
++#include "dietelfinfo.h"
+ 
+ #ifdef WANT_GNU_STARTUP_BLOAT
+ char* program_invocation_name;
+@@ -48,11 +49,12 @@ void* __tdataptr;
+ 
+ static void findtlsdata(long* auxvec) {
+ #if (__WORDSIZE == 64)
+-  Elf64_Phdr* x=0;
++  Elf64_Phdr const * x=0;
+ #else
+-  Elf32_Phdr* x=0;
++  Elf32_Phdr const * x=0;
+ #endif
+   size_t i,n=0;
++#ifndef WANT_ELFINFO
+   while (*auxvec) {
+     if (auxvec[0]==3) {	/* AT_PHDR */
+       x=(void*)auxvec[1];
+@@ -63,6 +65,18 @@ static void findtlsdata(long* auxvec) {
+     }
+     auxvec+=2;
+   } /* if we don't find the entry, the kernel let us down */
++#else
++  {
++    __diet_elf_addr_t const	*x_addr = __get_elf_aux_value(AT_PHDR);
++    __diet_elf_addr_t const	*n_addr = __get_elf_aux_value(AT_PHNUM);
++
++    (void)auxvec;
++    if (x_addr)
++      x = (__typeof__(x)) *x_addr;
++    if (n_addr)
++      n = *n_addr;
++  }
++#endif
+   if (!x || !n) return;	/* a kernel this old does not support thread local storage anyway */
+   for (i=0; i<n; ++i)
+     if (x[i].p_type==PT_TLS) {
+@@ -123,6 +137,7 @@ void __setup_tls(tcbhead_t* mainthread) {
+ }
+ #endif
+ 
++#ifndef WANT_ELFINFO
+ static void* find_rand(long* x) {
+   while (*x) {
+     if (*x==25)
+@@ -131,20 +146,30 @@ static void* find_rand(long* x) {
+   }
+   return NULL;
+ }
++#endif
+ 
+ int stackgap(int argc,char* argv[],char* envp[]);
+ int stackgap(int argc,char* argv[],char* envp[]) {
+ #if defined(WANT_STACKGAP) || defined(WANT_SSP) || defined(WANT_TLS)
+-  long* auxvec=(long*)envp;
+   char* rand;
+   char* tlsdata;
++#ifndef WANT_ELFINFO
++  long* auxvec=(long*)envp;
+   while (*auxvec) ++auxvec; ++auxvec;	/* skip envp to get to auxvec */
++#endif
+ #ifdef WANT_STACKGAP
+   unsigned short s;
++  volatile char* gap;
+ #endif
+ #if defined(WANT_STACKGAP) || defined(WANT_SSP)
+-  volatile char* gap;
++#ifndef WANT_ELFINFO
+   rand=find_rand(auxvec);
++#else
++  {
++    __diet_elf_addr_t const	*rand_addr = __get_elf_aux_value(25);
++    rand = rand_addr ? (void *)*rand_addr : NULL;
++  }
++#endif
+   if (!rand) {
+     char myrand[10];
+     int fd=open("/dev/urandom",O_RDONLY);
+@@ -165,7 +190,11 @@ int stackgap(int argc,char* argv[],char* envp[]) {
+ #endif
+ 
+ #ifdef WANT_TLS
++#ifndef WANT_ELFINFO
+   findtlsdata(auxvec);
++#else
++  findtlsdata(NULL);
++#endif
+   if (__unlikely(__tmemsize+sizeof(tcbhead_t)<sizeof(tcbhead_t)) ||
+       __unlikely(__tmemsize>512*1024*1024) ||
+       __unlikely(__tmemsize<__tdatasize))
+diff --git a/libcompat/syscall.S b/libcompat/syscall.S
+index c9f72bb..4188167 100644
+--- a/libcompat/syscall.S
++++ b/libcompat/syscall.S
+@@ -130,6 +130,12 @@ syscall:
+ 	b    __unified_syscall
+ 
+ #else
+-		/* arch not implemented yet */
++#include <endian.h>
++	.section	.comment
++#if (__WORDSIZE == 64)
++	.quad		__syscall_2_not_implemented_for_this_arch
++#else
++	.long		__syscall_2_not_implemented_for_this_arch
++#endif
+ #endif
+ .size	syscall, . - syscall
+diff --git a/libcruft/getpagesize.c b/libcruft/getpagesize.c
+index 5ff8973..ac701cf 100644
+--- a/libcruft/getpagesize.c
++++ b/libcruft/getpagesize.c
+@@ -1,25 +1,23 @@
+ #include <sys/types.h>
+ #include <sys/ipc.h>
+ #include <sys/shm.h>
+-/* for environ: */
+-#include <stdlib.h>
+ 
+-#ifndef PAGE_SIZE
+-#define PAGE_SIZE 4096
+-#endif
++#include "../dietelfinfo.h"
++#include "../dietpagesize.h"
+ 
+-size_t __libc_getpagesize(void);
+ size_t __libc_getpagesize(void) {
+-  long* x=(long*)environ;
+-  int fd;
+-  while (*x) ++x; ++x;	/* skip envp to get to auxvec */
+-  while (*x) {
+-    if (*x==6)
+-      return x[1];
+-    x+=2;
++#ifdef WANT_DYN_PAGESIZE
++  static size_t	pgsz;
++
++  if (__unlikely(pgsz==0)) {
++    __diet_elf_addr_t const	*v = __get_elf_aux_value(AT_PAGESZ);
++    pgsz = *v;	/* causes segfault when 'v==NULL' */
+   }
+-  return PAGE_SIZE;
++
++  return pgsz;
++#else
++  return __DIET_PAGE_SIZE_PREDEF;
++#endif
+ }
+ 
+ size_t getpagesize(void)       __attribute__((weak,alias("__libc_getpagesize")));
+-
+diff --git a/libcruft/mkstemp.c b/libcruft/mkstemp.c
+index 7dc19d4..226dec4 100644
+--- a/libcruft/mkstemp.c
++++ b/libcruft/mkstemp.c
+@@ -1,3 +1,4 @@
++#define _FILE_OFFSET_BITS 64
+ #include <unistd.h>
+ #include <fcntl.h>
+ #include <string.h>
+diff --git a/libcruft/sysconf.c b/libcruft/sysconf.c
+index 6865026..089fbd3 100644
+--- a/libcruft/sysconf.c
++++ b/libcruft/sysconf.c
+@@ -6,6 +6,9 @@
+ #define _GNU_SOURCE
+ #include <sched.h>
+ 
++#include "dietelfinfo.h"
++#include "dietpagesize.h"
++
+ extern int __sc_nr_cpus();
+ 
+ static long physpages() {
+@@ -42,6 +45,14 @@ long sysconf(int name)
+       return limit.rlim_cur;
+     }
+   case _SC_CLK_TCK:
++#ifdef WANT_ELFINFO
++    {
++      __diet_elf_addr_t const	*v = __get_elf_aux_value(AT_CLKTCK);
++      if (v)
++	return *v;
++    }
++#endif
++
+ #ifdef __alpha__
+     return 1024;
+ #else
+@@ -49,11 +60,7 @@ long sysconf(int name)
+ #endif
+ 
+   case _SC_PAGESIZE:
+-#if ( defined(__alpha__) || defined(__sparc__) )
+-    return 8192;
+-#else
+-    return 4096;
+-#endif
++    return __libc_getpagesize();
+ 
+   case _SC_PHYS_PAGES:
+     return physpages();
+diff --git a/libm/ceil.c b/libm/ceil.c
+new file mode 100644
+index 0000000..c126b02
+--- /dev/null
++++ b/libm/ceil.c
+@@ -0,0 +1,92 @@
++/* @(#)s_ceil.c 5.1 93/09/24 */
++/*
++ * ====================================================
++ * Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.
++ *
++ * Developed at SunPro, a Sun Microsystems, Inc. business.
++ * Permission to use, copy, modify, and distribute this
++ * software is freely granted, provided that this notice
++ * is preserved.
++ * ====================================================
++ */
++
++/*
++ * ceil(x)
++ * Return x rounded toward -inf to integral value
++ * Method:
++ *	Bit twiddling.
++ * Exception:
++ *	Inexact flag raised if x not equal to ceil(x).
++ */
++
++#include <math.h>
++
++typedef union {
++  double value;
++  struct {
++    unsigned int lsw;
++    unsigned int msw;
++  } parts;
++} ieee_double_shape_type;
++
++/* Get two 32 bit ints from a double.  */
++
++#define EXTRACT_WORDS(ix0,ix1,d)                                \
++do {                                                            \
++  ieee_double_shape_type ew_u;                                  \
++  ew_u.value = (d);                                             \
++  (ix0) = ew_u.parts.msw;                                       \
++  (ix1) = ew_u.parts.lsw;                                       \
++} while (0)
++
++#define INSERT_WORDS(d,ix0,ix1)                                 \
++do {                                                            \
++  ieee_double_shape_type iw_u;                                  \
++  iw_u.parts.msw = (ix0);                                       \
++  iw_u.parts.lsw = (ix1);                                       \
++  (d) = iw_u.value;                                             \
++} while (0)
++
++static const double huge = 1.0e300;
++
++double ceil(double x)
++{
++	int i0,i1,j0;
++	unsigned int i,j;
++	EXTRACT_WORDS(i0,i1,x);
++	j0 = ((i0>>20)&0x7ff)-0x3ff;
++	if(j0<20) {
++	    if(j0<0) { 	/* raise inexact if x != 0 */
++		if(huge+x>0.0) {/* return 0*sign(x) if |x|<1 */
++		    if(i0<0) {i0=0x80000000;i1=0;}
++		    else if((i0|i1)!=0) { i0=0x3ff00000;i1=0;}
++		}
++	    } else {
++		i = (0x000fffff)>>j0;
++		if(((i0&i)|i1)==0) return x; /* x is integral */
++		if(huge+x>0.0) {	/* raise inexact flag */
++		    if(i0>0) i0 += (0x00100000)>>j0;
++		    i0 &= (~i); i1=0;
++		}
++	    }
++	} else if (j0>51) {
++	    if(j0==0x400) return x+x;	/* inf or NaN */
++	    else return x;		/* x is integral */
++	} else {
++	    i = ((unsigned int)(0xffffffff))>>(j0-20);
++	    if((i1&i)==0) return x;	/* x is integral */
++	    if(huge+x>0.0) { 		/* raise inexact flag */
++		if(i0>0) {
++		    if(j0==20) i0+=1;
++		    else {
++			j = i1 + (1<<(52-j0));
++			if(j<i1) i0+=1;	/* got a carry */
++			i1 = j;
++		    }
++		}
++		i1 &= (~i);
++	    }
++	}
++	INSERT_WORDS(x,i0,i1);
++	return x;
++}
+diff --git a/libm/gamma.c b/libm/gamma.c
+index 9682f35..370bec6 100644
+--- a/libm/gamma.c
++++ b/libm/gamma.c
+@@ -33,19 +33,19 @@ Return value    gamma returns a value in range (-0.1208, +oo). For a input
+ #include <stdlib.h>
+ #include <math.h>
+ 
+-#define B0      +            1.0l/   6/ 1/ 2
+-#define B1      -            1.0l/  30/ 3/ 4
+-#define B2      +            1.0l/  42/ 5/ 6
+-#define B3      -            1.0l/  30/ 7/ 8
+-#define B4      +            5.0l/  66/ 9/10
+-#define B5      -          691.0l/2730/11/12
+-#define B6      +            7.0l/   6/13/14
+-#define B7      -         3617.0l/ 510/15/16
+-#define B8      +        43867.0l/ 798/17/18
+-#define B9      -       174611.0l/ 330/19/20
+-#define B10     +       854513.0l/ 138/21/22
+-#define B11     -    236364091.0l/2730/23/24
+-#define B12     +      8553103.0l/   6/25/26
++#define B0      +            1.0/   6/ 1/ 2
++#define B1      -            1.0/  30/ 3/ 4
++#define B2      +            1.0/  42/ 5/ 6
++#define B3      -            1.0/  30/ 7/ 8
++#define B4      +            5.0/  66/ 9/10
++#define B5      -          691.0/2730/11/12
++#define B6      +            7.0/   6/13/14
++#define B7      -         3617.0/ 510/15/16
++#define B8      +        43867.0/ 798/17/18
++#define B9      -       174611.0/ 330/19/20
++#define B10     +       854513.0/ 138/21/22
++#define B11     -    236364091.0/2730/23/24
++#define B12     +      8553103.0/   6/25/26
+ 
+ static const double  coeff[] = { B0, B1, B2, B3, B4, B5, B6, B7, B8, B9, B10 };
+ int                  signgam;
+diff --git a/librpc/clnt_raw.c b/librpc/clnt_raw.c
+index 042d130..1e89ac0 100644
+--- a/librpc/clnt_raw.c
++++ b/librpc/clnt_raw.c
+@@ -53,7 +53,10 @@ static struct clntraw_private {
+ 	CLIENT client_object;
+ 	XDR xdr_stream;
+ 	char _raw_buf[UDPMSGSIZE];
+-	char mashl_callmsg[MCALL_MSG_SIZE];
++	union {
++		struct rpc_msg	msg;
++		char buf[MCALL_MSG_SIZE];
++	} mashl_call;
+ 	unsigned int mcnt;
+ } *clntraw_private;
+ 
+@@ -101,7 +104,7 @@ unsigned long vers;
+ 	call_msg.rm_call.cb_rpcvers = RPC_MSG_VERSION;
+ 	call_msg.rm_call.cb_prog = prog;
+ 	call_msg.rm_call.cb_vers = vers;
+-	xdrmem_create(xdrs, clp->mashl_callmsg, MCALL_MSG_SIZE, XDR_ENCODE);
++	xdrmem_create(xdrs, clp->mashl_call.buf, MCALL_MSG_SIZE, XDR_ENCODE);
+ 	if (!xdr_callhdr(xdrs, &call_msg)) {
+ 		perror("clnt_raw.c - Fatal header serialization error.");
+ 	}
+@@ -145,8 +148,8 @@ struct timeval timeout;
+ 	 */
+ 	xdrs->x_op = XDR_ENCODE;
+ 	XDR_SETPOS(xdrs, 0);
+-	((struct rpc_msg *) clp->mashl_callmsg)->rm_xid++;
+-	if ((!XDR_PUTBYTES(xdrs, clp->mashl_callmsg, clp->mcnt)) ||
++	clp->mashl_call.msg.rm_xid++;
++	if ((!XDR_PUTBYTES(xdrs, clp->mashl_call.buf, clp->mcnt)) ||
+ 		(!XDR_PUTLONG(xdrs, (long *) &proc)) ||
+ 		(!AUTH_MARSHALL(h->cl_auth, xdrs)) || (!(*xargs) (xdrs, argsp))) {
+ 		return (RPC_CANTENCODEARGS);
+diff --git a/librpc/clnt_udp.c b/librpc/clnt_udp.c
+index ae7f3d8..003edf5 100644
+--- a/librpc/clnt_udp.c
++++ b/librpc/clnt_udp.c
+@@ -335,7 +335,7 @@ struct timeval utimeout;		/* seconds to wait before giving up */
+ 		if (inlen < 4)
+ 			continue;
+ 		/* see if reply transaction id matches sent id */
+-		if (*((uint32_t *) (cu->cu_inbuf)) != *((uint32_t *) (cu->cu_outbuf)))
++		if (memcmp(cu->cu_inbuf, cu->cu_outbuf, 4) != 0)
+ 			continue;
+ 		/* we now assume we have the proper reply */
+ 		break;
+diff --git a/libugly/strftime.c b/libugly/strftime.c
+index 56ae082..cf16f37 100644
+--- a/libugly/strftime.c
++++ b/libugly/strftime.c
+@@ -55,6 +55,7 @@ again:
+ 	    case 'x': src = "%b %a %d";   			 goto _strf;
+ 	    case 'X': src = "%k:%M:%S";   			 goto _strf;
+ 	    case 'D': src = "%m/%d/%y";   			 goto _strf;
++	    case 'F': src = "%Y-%m-%d";				 goto _strf;
+ 	    case 'T': src = "%H:%M:%S";
+ 	       _strf: p  += strftime (p, (size_t)(dst+max-p), src, tm); 	 break;
+ 	    case 'a': src = sweekdays [tm->tm_wday]; 		 goto _str;
+diff --git a/libugly/strptime.c b/libugly/strptime.c
+index 9d7f530..d19f309 100644
+--- a/libugly/strptime.c
++++ b/libugly/strptime.c
+@@ -119,10 +119,11 @@ char* strptime(const char* s,const char* format, struct tm* tm) {
+ 	++s;
+ 	break;
+       case 'x':
+-	s=strptime(s,"%b %a %d",tm);
++	/* see SUSv2, Ch.7 "LC_TIME Category in the POSIX Locale" */
++	s=strptime(s,"%m/%d/%y",tm);
+ 	break;
+       case 'X':
+-	s=strptime(s,"%k:%M:%S",tm);
++	s=strptime(s,"%H:%M:%S",tm);
+ 	break;
+       case 'y':
+ 	i=getint(&s,2);
+diff --git a/mips/start.S b/mips/start.S
+index 57144b3..3cf3433 100644
+--- a/mips/start.S
++++ b/mips/start.S
+@@ -47,6 +47,15 @@ __start:
+ #endif
+ 	add	$a2, $a2, $a1
+ 	sw	$a2, environ
++#ifdef WANT_ELFINFO
++#  warning "MAKE ME MIPS CODE!"
++1:	addu	$a2, $a2, 4	/* increment envp */
++	lw	$4, -4($a2)     /* load envp[-1]; TODO: is $4 a proper
++				   temporary register? */
++	bnz	1b		/* ... until envp[-1]==NULL
++				   TODO: use proper 'bnz' operation */
++	sw	$a2, __elfinfo
++#endif
+ 	jalr	$25
+ 	la	$25, exit
+ 	move	$4,$2
+diff --git a/parisc/start.S b/parisc/start.S
+index 69d9cce..894255c 100644
+--- a/parisc/start.S
++++ b/parisc/start.S
+@@ -34,6 +34,16 @@ _start:
+ 	ldil LP%environ, %r19
+ 	ldo RP%environ(%r19), %r19
+ 
++#ifdef WANT_ELFINFO
++#  warning "MAKE ME PARISC CODE!"
++1:	add %r20, %r19, %r19		; envp += 4
++	ldw -4(0,%r19), %r21		; load envp[-4] into %r21
++	comibf =,0, 0,%21,1b		; compare %21 with 0 without nullification
++
++	ldil LP%__elfinfo, %r19
++	ldo RP%__elfinfo(%r19), %r19
++#endif
++
+ 	/* Expand the stack to store the 5th through 7th args */
+ 	ldo 64(%sp), %sp
+ 
+diff --git a/ppc/start.S b/ppc/start.S
+index 771f1ad..3b5cab1 100644
+--- a/ppc/start.S
++++ b/ppc/start.S
+@@ -31,6 +31,15 @@ _start:
+ 	lis	14,environ@ha
+ 	stw	5,environ@l(14)
+ 
++#ifdef WANT_ELFINFO
++1:	lwzu	15,0(5)
++	addi	5, 5, 4
++	cmpwi	15,0
++	bne	1b
++
++	stw	5,__elfinfo@l(14)
++#endif
++
+ #ifdef WANT_DYNAMIC
+ 	mr	6,7
+ 	bl	_dyn_start
+diff --git a/ppc64/start.S b/ppc64/start.S
+index a9208ff..46b4bf0 100644
+--- a/ppc64/start.S
++++ b/ppc64/start.S
+@@ -58,6 +58,15 @@ _start:
+ 	oris	14,14,environ@ha
+ 	std	5,environ@l(14)
+ 
++#ifdef WANT_ELFINFO
++1:	ldu	15,0(5)
++	addi	5, 5, 8
++	cmpdi	15,0
++	bne	1b
++
++	std	5,__elfinfo@l(14)
++#endif
++
+ #ifdef WANT_DYNAMIC
+ /* #warning dynamic */
+ 	mr	6,7
+diff --git a/s390/start.S b/s390/start.S
+index c0f971f..585faf7 100644
+--- a/s390/start.S
++++ b/s390/start.S
+@@ -30,6 +30,17 @@ _start:
+ 	l	%r1,8(%r13)
+ 	st	%r4,0(%r1)
+ 
++#ifdef WANT_ELFINFO
++#  warning "VERIFY ME!"
++1:	ahi	%r4, 4		# increment envp
++	l	%r12, -4(0,%r4)	# load envp[-1] into %r12
++	or	%r12, %r12	# test %r12 for NULL
++	brc	1, 1b
++
++	ahi	%r1, 4
++	st	%r4,0(%r1)
++#endif
++
+ /* call main or _dyn_start */
+ 	l	%r1,0(%r13)
+ 	basr	%r14,%r1
+diff --git a/s390x/start.S b/s390x/start.S
+index 25895a6..15ad1f9 100644
+--- a/s390x/start.S
++++ b/s390x/start.S
+@@ -26,6 +26,17 @@ _start:
+ 	larl	%r13,environ
+ 	stg	%r4,0(%r13)
+ 
++#ifdef WANT_ELFINFO
++#  warning "VERIFY ME!"
++1:	aghi	%r4, 8		# increment envp
++	lg	%r12, -8(0,%r4)	# load envp[-1] into %r12
++	ogr	%r12, %r12	# test %r12 for NULL
++	brc	1, 1b
++
++	aghi	%r13, 8
++	stg	%r4,0(%r13)
++#endif
++
+ /* call main or _dyn_start */
+ #ifdef WANT_DYNAMIC
+ 	brasl	%r14,_dyn_start
+diff --git a/sparc/shmat.c b/sparc/shmat.c
+index b7dce2e..ce3bfcb 100644
+--- a/sparc/shmat.c
++++ b/sparc/shmat.c
+@@ -3,17 +3,15 @@
+ #include <sys/shm.h>
+ #include <unistd.h>
+ 
+-extern void* __ipc();
++#include "../dietpagesize.h"
+ 
+-#ifndef PAGE_SIZE
+-#define PAGE_SIZE 4096
+-#endif
++extern void* __ipc();
+ 
+ void* shmat(int shmid,const void* shmaddr,int shmflg) {
+   void* raddr;
+   register void* result;
+   result=__ipc(SHMAT,shmid,shmflg,&raddr,shmaddr);
+-  if ((unsigned long)result <= -(unsigned long)PAGE_SIZE)
++  if ((unsigned long)result <= -(unsigned long)__DIET_PAGE_SIZE)
+     result=raddr;
+   return result;
+ }
+diff --git a/sparc/start.S b/sparc/start.S
+index a7841e3..bb463c9 100644
+--- a/sparc/start.S
++++ b/sparc/start.S
+@@ -25,6 +25,17 @@ _start:
+ 	or	%o3, %lo(environ), %o3
+ 	st	%o2, [%o3]
+ 
++#ifdef WANT_ELFINFO
++#  warning "VERIFY ME!"
++1:	add	%o2, %o2, 4
++	ld	[%o2-4], %o4
++	orcc	%o4, %o4, %o4
++	bne	1b
++
++	add	%o3, %o3, 4
++	st	%o2, [%o3]
++#endif
++
+ /* When starting a binary via the dynamic linker, %g1 contains the
+    address of the shared library termination function, which will be
+    registered with atexit(). If we are statically linked, this will
+diff --git a/sparc64/start.S b/sparc64/start.S
+index a79c4e7..a884658 100644
+--- a/sparc64/start.S
++++ b/sparc64/start.S
+@@ -25,6 +25,17 @@ _start:
+ 	or	%o3, %lo(environ), %o3
+ 	stx	%o2, [%o3]
+ 
++#ifdef WANT_ELFINFO
++#  warning "VERIFY ME!"
++1:	add	%o2, %o2, 8
++	ldx	[%o2-8], %o4
++	orcc	%o4, %o4, %o4
++	bne	1b
++
++	add	%o3, %o3, 8
++	stx	%o2, [%o3]
++#endif
++
+ /* When starting a binary via the dynamic linker, %g1 contains the
+    address of the shared library termination function, which will be
+    registered with atexit(). If we are statically linked, this will
+diff --git a/syscalls.s/environ.S b/syscalls.s/environ.S
+index a4dd95e..294f2d4 100644
+--- a/syscalls.s/environ.S
++++ b/syscalls.s/environ.S
+@@ -1,6 +1,7 @@
+ .section ".bss"
+ .align 8
+ #include <endian.h>
++#include <dietfeatures.h>
+ 
+ .type environ,object
+ .weak environ
+@@ -15,3 +16,18 @@ environ:
+ #endif
+ .size environ,.-environ
+ .size __environ,.-__environ
++
++/* __elfinfo will be initialized in start.S to point to the
++   terminating NULL of the environment. */
++
++#ifdef WANT_ELFINFO
++.type __elfinfo,object
++.weak __elfinfo
++__elfinfo:
++#if __WORDSIZE == 64
++	.quad 0
++#else
++	.long 0
++#endif
++.size __elfinfo,.-__elfinfo
++#endif
+diff --git a/syscalls.s/fadvise64.S b/syscalls.s/fadvise64.S
+index eab3986..fe448b1 100644
+--- a/syscalls.s/fadvise64.S
++++ b/syscalls.s/fadvise64.S
+@@ -1,12 +1,11 @@
+ #include "syscalls.h"
+ 
++#ifdef __NR_fadvise64
++syscall(fadvise64,fadvise64)
++
+ #ifndef __NR_fadvise64_64
++.set   posix_fadvise, fadvise64
+ .globl posix_fadvise
+-.type posix_fadvise,@function
+-posix_fadvise:
+ #endif
+ 
+-#ifdef __NR_fadvise64
+-syscall(fadvise64,fadvise64)
+-
+ #endif
+diff --git a/test/.gitignore b/test/.gitignore
+new file mode 100644
+index 0000000..92c5678
+--- /dev/null
++++ b/test/.gitignore
+@@ -0,0 +1,85 @@
++/adjtime
++/alarm
++/argv
++/asprintf
++/atexit
++/bsearch
++/byteswap
++/calloc
++/confstr
++/cycles
++/empty
++/fadvise
++/ffs
++/flush
++/fnmatch
++/fputc
++/ftruncate
++/ftw
++/fwrite
++/getaddrinfo
++/getdelim
++/getenv
++/getgrnam
++/gethostbyaddr
++/gethostbyname
++/gethostbyname_r
++/getmntent
++/getopt
++/getpass
++/getpwnam
++/getservbyname
++/getservbyport
++/getusershell
++/glob
++/grent
++/hasmntopt
++/hello
++/iconv
++/if_nameindex
++/ltostr
++/malloc-debugger
++/math
++/md5_testharness
++/memccpy
++/memchr
++/memcmp
++/memrchr
++/memusage
++/mktime
++/mmap_test
++/pipe
++/printf
++/printftest
++/protoent
++/prototypes
++/putenv
++/pwent
++/rand48
++/read1
++/readdir
++/regex
++/select
++/sendfile
++/servent
++/setjmp
++/siglist
++/sigsetjmp
++/speed
++/spent
++/sprintf
++/sscanf
++/stdarg
++/strcasecmp
++/strcmp
++/strncat
++/strncpy
++/strptime
++/strrchr
++/strstr
++/strtol
++/sysconf
++/sysenter
++/ungetc
++/utime
++/waitpid
+diff --git a/test/Makefile b/test/Makefile
+index 2e406f3..152cf5a 100644
+--- a/test/Makefile
++++ b/test/Makefile
+@@ -8,13 +8,13 @@ CFLAGS=-nostdinc -Wall
+ LCOMPAT=-lcompat
+ 
+ TESTPROGRAMS=adjtime alarm argv asprintf atexit bsearch byteswap calloc confstr cycles empty fadvise flush fnmatch \
+-fputc ftw fwrite getaddrinfo getenv getgrnam gethostbyaddr gethostbyname \
++fputc ftruncate ftw fwrite getaddrinfo getenv getgrnam gethostbyaddr gethostbyname \
+ gethostbyname_r getmntent getopt getpass getpwnam getservbyname getservbyport getusershell \
+-glob grent hasmntopt hello iconv if_nameindex ltostr malloc-debugger md5_testharness \
++glob grent hasmntopt hello iconv if_nameindex ltostr malloc-debugger math md5_testharness \
+ memccpy memchr memcmp memrchr memusage mktime mmap_test pipe printf printftest \
+-protoent prototypes putenv pwent rand48 read1 readdir regex select sendfile servent siglist \
+-speed spent sprintf sscanf stdarg strcasecmp strcmp strncat strncpy strptime strrchr \
+-strstr strtol sysenter ungetc utime waitpid
++protoent prototypes putenv pwent rand48 read1 readdir regex select sendfile servent setjmp siglist \
++sigsetjmp speed spent sprintf sscanf stdarg strcasecmp strcmp strncat strncpy strptime strrchr \
++strstr strtol sysconf sysenter ungetc utime waitpid
+ 
+ test: $(TESTPROGRAMS)
+ 
+diff --git a/test/adjtime.c b/test/adjtime.c
+index d42d129..8d7a016 100644
+--- a/test/adjtime.c
++++ b/test/adjtime.c
+@@ -1,9 +1,25 @@
+ #include <stdio.h>
++#include <assert.h>
++#include <errno.h>
+ #include <sys/time.h>
+ 
+ int main() {
+   struct timeval a,b;
++  int rc;
+   a.tv_sec=0; a.tv_usec=0;
+-  printf("%d\n",adjtime(&a,&b));
++  rc = adjtime(&a,&b);
++  assert(!rc || errno == EPERM);
++
++  rc = adjtime(&a, NULL);
++  assert(!rc || errno == EPERM);
++
++  rc = adjtime(NULL,&b);
++  assert(!rc);
++  assert(b.tv_sec  < 30);	    /* 30 seconds delta is very unlikely... */
++  assert(b.tv_sec  > -30);	    /* 30 seconds delta is very unlikely... */
++  assert(b.tv_usec > -1000000);
++  assert(b.tv_usec < 1000000);
++
++  printf("%lu/%d\n", (unsigned long)b.tv_sec, (int)b.tv_usec);
+   return 0;
+ }
+diff --git a/test/asprintf.c b/test/asprintf.c
+index 996a5aa..0d4f2eb 100644
+--- a/test/asprintf.c
++++ b/test/asprintf.c
+@@ -13,7 +13,7 @@ int main(int argc, char **argv) {
+  assert(strlen(path) == asprintlen);
+ 	     
+  printf("%s\n", path);
+- asprintlen=asprintf(&path, "/proc" "/%d/stat", strlen(argv[1]));
++ asprintlen=asprintf(&path, "/proc" "/%zu/stat", strlen(argv[1]));
+  assert(strlen(path) == asprintlen);
+  printf("%s\n", path);
+ 
+diff --git a/test/atexit.c b/test/atexit.c
+index 709a3e4..79ee392 100644
+--- a/test/atexit.c
++++ b/test/atexit.c
+@@ -2,7 +2,7 @@
+ #include <unistd.h>
+ 
+ void blah(void) {
+-  write(2,"atexit\n",7);
++  write(1,"atexit\n",7);
+ }
+ 
+ int main() {
+diff --git a/test/bsearch.c b/test/bsearch.c
+index 961ad35..ede4c88 100644
+--- a/test/bsearch.c
++++ b/test/bsearch.c
+@@ -35,7 +35,7 @@ int main() {
+ 	die("bsearch returned NULL\n");
+       }
+       if (k != array+i) die("bsearch found wrong element\n");
+-      printf("%d\n",k-array);
++      printf("%ld\n",k-array);
+     }
+   }
+   return 0;
+diff --git a/test/byteswap.c b/test/byteswap.c
+index 19239dd..6f43c25 100644
+--- a/test/byteswap.c
++++ b/test/byteswap.c
+@@ -9,12 +9,12 @@ int main() {
+   snprintf(buf,100,"%x %x", bswap_16(0x1234), bswap_16(0x5678));
+   assert(strcmp(buf, "3412 7856") == 0);
+   
+-  printf("%lx\n",bswap_32(0x12345678));
+-  snprintf(buf,100,"%lx", bswap_32(0x12345678));
++  printf("%x\n",(unsigned int)bswap_32(0x12345678));
++  snprintf(buf,100,"%x", (unsigned int)bswap_32(0x12345678));
+   assert(strcmp(buf, "78563412") == 0);
+ 
+-  printf("%qx\n",bswap_64(0x123456789ABCDEFull));
+-  snprintf(buf,100,"%qx", bswap_64(0x123456789ABCDEFull));
++  printf("%llx\n",(unsigned long long)bswap_64(0x123456789ABCDEFull));
++  snprintf(buf,100,"%llx", (unsigned long long)bswap_64(0x123456789ABCDEFull));
+   assert(strcmp(buf, "efcdab8967452301") == 0);
+   return 0; 
+ }
+diff --git a/test/cycles.c b/test/cycles.c
+index 35547f8..46b2f32 100644
+--- a/test/cycles.c
++++ b/test/cycles.c
+@@ -13,7 +13,8 @@
+   dst = (((uint64_t)h) << 32) | l;                             \
+ } while (0)
+ #else
+-#error "Unimplemented rdtsc"
++#warning "Unimplemented rdtsc"
++#define RDTSC(dst) dst = 0
+ #endif
+ 
+ extern char **environ;
+@@ -24,7 +25,7 @@ int main(int argc,char* argv[]) {
+   if (!fork()) { execve(argv[1],argv+1,environ); exit(1); }
+   wait(0);
+   RDTSC(b);
+-  printf("%llu cycles\n",b-a);
++  printf("%llu cycles\n",(unsigned long long)(b-a));
+ 
+   return 0;
+ }
+diff --git a/test/dirent/.gitignore b/test/dirent/.gitignore
+new file mode 100644
+index 0000000..eea7a22
+--- /dev/null
++++ b/test/dirent/.gitignore
+@@ -0,0 +1,2 @@
++/opendir-tst1
++/tst-seekdir
+diff --git a/test/ftruncate.c b/test/ftruncate.c
+new file mode 100644
+index 0000000..e0ebb5d
+--- /dev/null
++++ b/test/ftruncate.c
+@@ -0,0 +1,54 @@
++#define _GNU_SOURCE
++#define _XOPEN_SOURCE 600
++#define _FILE_OFFSET_BITS 64
++
++#include <stdlib.h>
++#include <fcntl.h>
++#include <assert.h>
++#include <unistd.h>
++#include <sys/stat.h>
++
++#define CHECK(_sz)				\
++  assert(ftruncate(fd, (_sz)) == 0);		\
++  assert(fstat(fd, &st) == 0);			\
++  assert(st.st_size == (_sz));			\
++
++#define CHECK64(_sz)				\
++  assert(ftruncate64(fd, (_sz)) == 0);		\
++  assert(fstat64(fd, &st64) == 0);		\
++  assert(st64.st_size == (_sz));		\
++
++int main(void)
++{
++  char file[] = "/tmp/dietlibc-fadvise-test.XXXXXX";
++  int fd;
++  struct stat st;
++
++  fd = mkstemp(file);
++  unlink(file);
++
++  assert(ftruncate(fd, 500000) == 0);
++  assert(fstat(fd, &st) == 0);
++
++  if (st.st_blocks > 1) {
++    /* spare files not supported by filesystem :( */
++    return EXIT_SUCCESS;
++  }
++
++  CHECK(1);
++  CHECK(0x7fffffff);
++
++#if __WORDSIZE == 32
++  {
++    struct stat64 st64;
++    CHECK64(1);
++    CHECK64(0x7fffffff);
++    CHECK64(0x80000001ul);
++    CHECK64(0x17fffffffull);
++  }
++#else
++  CHECK(0x17fffffffull);
++#endif
++
++  return EXIT_SUCCESS;
++}
+diff --git a/test/getmntent.c b/test/getmntent.c
+index fc17a83..1039d06 100644
+--- a/test/getmntent.c
++++ b/test/getmntent.c
+@@ -33,10 +33,6 @@ while ((e = getmntent(fstab))) {
+ 
+  printf("closing /etc/fstab\n");
+  assert ( 1 == endmntent(fstab));
+- printf("closing /etc/fstab again\n");
+- assert ( 1 == endmntent(fstab)); /* endmntent must always return 1 */
+- printf("entmntent(0)\n");
+- assert ( 1 == endmntent(0)); /* causes a segfault with diet libc */
++
+  return 0;
+ }
+-
+diff --git a/test/getservbyname.c b/test/getservbyname.c
+index b70ca19..caf1c9f 100644
+--- a/test/getservbyname.c
++++ b/test/getservbyname.c
+@@ -1,5 +1,6 @@
+ #include <stdio.h>
+ #include <netdb.h>
++#include <arpa/inet.h>
+ 
+ int main(int argc,char *argv[]) {
+   struct servent* se;
+diff --git a/test/if_nameindex.c b/test/if_nameindex.c
+index b3c8b22..0c171f8 100644
+--- a/test/if_nameindex.c
++++ b/test/if_nameindex.c
+@@ -1,8 +1,12 @@
+ #include <stdio.h>
++#include <assert.h>
+ #include <net/if.h>
+ 
+ int main() {
+   struct if_nameindex* t=if_nameindex();
++
++  assert(t != NULL);
++
+   if (t) {
+     struct if_nameindex* t1=t;
+     while (t->if_index) {
+diff --git a/test/malloc-debugger.c b/test/malloc-debugger.c
+index 040196e..058807e 100644
+--- a/test/malloc-debugger.c
++++ b/test/malloc-debugger.c
+@@ -4,7 +4,7 @@
+ int main() {
+   char* c=malloc(13);
+   char* tmp;
+-  fprintf(stderr,"got %p\n",c);
++  fprintf(stdout,"got %p\n",c);
+   c[0]=14;
+ //  c[15]=0;
+   tmp=realloc(c,12345);
+diff --git a/test/math.c b/test/math.c
+new file mode 100644
+index 0000000..687103c
+--- /dev/null
++++ b/test/math.c
+@@ -0,0 +1,29 @@
++#include <math.h>
++#include <float.h>
++#include <assert.h>
++
++int main()
++{
++  extern int __isinf(double d);
++  extern int __isnan(double d);
++
++#if (__GNUC__ > 3) || ((__GNUC__ == 3) && (__GNUC_MINOR__ >= 3))
++  assert(__isinf(__builtin_inff())  == +1);
++  assert(__isinf(-__builtin_inff()) == -1);
++
++  assert(__isinf(__builtin_inf())   == +1);
++  assert(__isinf(-__builtin_inf())  == -1);
++
++  assert(__isnan(__builtin_nan("")));
++#endif
++
++  assert(__isinf((DBL_MAX * DBL_MAX))  == +1);
++  assert(__isinf(-(DBL_MAX * DBL_MAX)) == -1);
++
++  assert(isinf((DBL_MAX * DBL_MAX)));
++  assert(isinf(-(DBL_MAX * DBL_MAX)));
++
++  //assert(isnan(nan("")));
++
++  return 0;
++}
+diff --git a/test/mktime.c b/test/mktime.c
+index 5e9e65c..9b4bd5e 100644
+--- a/test/mktime.c
++++ b/test/mktime.c
+@@ -9,15 +9,15 @@ int main() {
+   t.tm_mday=29;
+   t.tm_mon=2;
+   t.tm_year=100;
+-  printf("%d\n",mktime(&t));
++  printf("%ld\n",(long)mktime(&t));
+   t.tm_mday=1;
+   t.tm_mon=3;
+   t.tm_year=102;
+-  printf("%d\n",mktime(&t));
++  printf("%ld\n",(long)mktime(&t));
+   t.tm_mday=1;
+   t.tm_mon=6;
+   t.tm_year=102;
+-  printf("%d\n",mktime(&t));
++  printf("%ld\n",(long)mktime(&t));
+   return 0;
+ }
+ 
+diff --git a/test/mmap_test.c b/test/mmap_test.c
+index 1fc2616..5aa79eb 100644
+--- a/test/mmap_test.c
++++ b/test/mmap_test.c
+@@ -15,7 +15,7 @@ int main (int argc, char * argv[])
+    void *filememory_1;
+    void *filememory_2;
+    
+-   fd = open (FILENAME, O_RDWR | O_CREAT);
++   fd = open (FILENAME, O_RDWR | O_CREAT, 0600);
+    
+    if (fd < 0)
+    {
+diff --git a/test/pipe.c b/test/pipe.c
+index fb6ba31..315b4ca 100644
+--- a/test/pipe.c
++++ b/test/pipe.c
+@@ -5,6 +5,9 @@ int
+ main (void)
+ {
+ 	int fd[2];
++	close(3);
++	close(4);
++
+ 	assert (!pipe (fd));
+ 	/* if for some reason the parent process has fd3 or fd4
+ 	   already open, then this will fail although there is
+diff --git a/test/printf.c b/test/printf.c
+index 719461a..ef6050d 100644
+--- a/test/printf.c
++++ b/test/printf.c
+@@ -2,11 +2,26 @@
+ #include <string.h>
+ #include <stdlib.h>
+ #include <assert.h>
++#include <math.h>
++#include <float.h>
+ #include <sys/param.h>
+ #include <locale.h>
+ 
+ #define ALGN		5
+ 
++#ifndef INFINITY
++#  if (__GNUC__ > 3) || ((__GNUC__ == 3) && (__GNUC_MINOR__ >= 3))
++#    define INFINITY	(__builtin_inf())
++#  endif
++#endif
++
++#ifndef NAN
++#  if (__GNUC__ > 3) || ((__GNUC__ == 3) && (__GNUC_MINOR__ >= 3))
++#    define NAN		(__builtin_nan(""))
++#  endif
++#endif
++
++
+ // https://bugzilla.redhat.com/bugzilla/show_bug.cgi?id=112986
+ #if 0
+ #undef  assert
+@@ -60,7 +75,7 @@
+   TEST_SNPRINTF(EXP,  0,                __VA_ARGS__);		\
+   TEST_SNPRINTF(EXP,  sizeof(EXP)+ALGN, __VA_ARGS__);		\
+   TEST_SNPRINTF_NULL(EXP, __VA_ARGS__)
+-  
++
+ 
+ int main()
+ {
+@@ -101,7 +116,7 @@ int main()
+   TEST("42.23",   "%5.2f",  42.23);
+   TEST("42.23",   "%5.4g",  42.23);
+   TEST(" 42.2",   "%5.3g",  42.23);
+-  
++
+   TEST("   1",     "%*i",   4, 1);
+   TEST("   1",     "%4i",   1);
+   TEST("1   ",     "%-4i",  1);
+@@ -131,13 +146,32 @@ int main()
+   TEST("-01234",   "%6.5i", -1234);
+   TEST("  1234",   "%6.5s", "1234");
+ 
++#ifdef INFINITY
++  TEST("inf",	"%f", INFINITY);
++  TEST("-inf",	"%f", -INFINITY);
++  TEST("INF",	"%F", INFINITY);
++  TEST("-INF",	"%F", -INFINITY);
++
++  TEST("inf",	"%g", INFINITY);
++  TEST("-inf",	"%g", -INFINITY);
++  TEST("INF",	"%G", INFINITY);
++  TEST("-INF",	"%G", -INFINITY);
++#endif
++
++#ifdef NAN
++  TEST("nan",	"%f", NAN);
++  TEST("NAN",	"%F", NAN);
++  TEST("nan",	"%g", NAN);
++  TEST("NAN",	"%G", NAN);
++#endif
++
+ #ifdef XSI_TESTS
+   setlocale(LC_ALL, "de_DE");
+-  
++
+   TEST("1.234",    "%'u", 1234);
+   TEST("2 1",      "%2$u %1$u",  1, 2);
+ #endif
+-  
+-  
++
++
+   return EXIT_SUCCESS;
+ }
+diff --git a/test/printftest.c b/test/printftest.c
+index 4743279..47d9580 100644
+--- a/test/printftest.c
++++ b/test/printftest.c
+@@ -101,8 +101,8 @@ int main()
+   printf("#%i#\n",18);
+   printf("#%d#\n",18);
+   printf("#%u#\n",18);
+-  printf("#%lu#\n",18);
+-  printf("#%li#\n",18);
++  printf("#%lu#\n",18l);
++  printf("#%li#\n",18l);
+   printf("#%-+#06d#\n", -123);
+   printf("#%-+#6d#\n", -123);
+   printf("#%+#06d#\n", -123);
+@@ -142,7 +142,7 @@ int main()
+ 	    buf);
+     memset(buf2,0,sizeof(buf));
+     i=snprintf(buf2, 256, "%.9999u", 10);
+-    printf("%i %i\n",i,strlen(buf2));
++    printf("%i %li\n",i,strlen(buf2));
+     
+     printf ("snprintf (\"%%.999999u\", 10) == %d\n",
+     	    snprintf(buf2, sizeof(buf2), "%.999999u", 10));
+diff --git a/test/rand48.c b/test/rand48.c
+index 4f5b08f..1e67632 100644
+--- a/test/rand48.c
++++ b/test/rand48.c
+@@ -6,16 +6,16 @@ main (void)
+ {
+   static unsigned short  data[7] = { 1, 2, 3, 4, 5, 6, 7 };
+ 
+-  printf ("one   %X\n", mrand48 ());
+-  printf ("two   %X\n", mrand48 ());
+-  printf ("three %X\n", mrand48 ());
++  printf ("one   %lX\n", mrand48 ());
++  printf ("two   %lX\n", mrand48 ());
++  printf ("three %lX\n", mrand48 ());
+ 
+   lcong48 (data);
+   printf ("after lcong48:\n");
+ 
+-  printf ("one   %X\n", mrand48 ());
+-  printf ("two   %X\n", mrand48 ());
+-  printf ("three %X\n", mrand48 ());
++  printf ("one   %lX\n", mrand48 ());
++  printf ("two   %lX\n", mrand48 ());
++  printf ("three %lX\n", mrand48 ());
+ 
+   return 0;
+ }
+diff --git a/test/runtests.sh b/test/runtests.sh
+index d6fb19b..15b70b1 100644
+--- a/test/runtests.sh
++++ b/test/runtests.sh
+@@ -1,6 +1,6 @@
+ SUBDIRS="dirent inet stdio string stdlib time"
+ 
+-TESTPROGRAMS="adjtime alarm argv atexit bsearch byteswap calloc confstr empty fadvise flush fputc ffs fnmatch ftw fwrite getaddrinfo getenv getdelim getgrnam gethostbyaddr gethostbyname gethostbyname_r getmntent getopt getpwnam getservbyname getservbyport getusershell glob grent hasmntopt hello iconv if_nameindex ltostr malloc-debugger md5_testharness memccpy memchr memcmp memrchr memusage mktime mmap_test pipe printf printftest protoent prototypes putenv pwent rand48 readdir regex select sendfile servent siglist speed spent sprintf sscanf stdarg strcasecmp strcmp strncat strncpy strptime strrchr strstr strtol sysenter ungetc utime waitpid"
++TESTPROGRAMS="adjtime alarm argv atexit bsearch byteswap calloc confstr empty fadvise flush fputc ffs fnmatch ftruncate ftw fwrite getaddrinfo getenv getdelim getgrnam gethostbyaddr gethostbyname gethostbyname_r getmntent getopt getpwnam getservbyname getservbyport getusershell glob grent hasmntopt hello iconv if_nameindex ltostr malloc-debugger math md5_testharness memccpy memchr memcmp memrchr memusage mktime mmap_test pipe printf printftest protoent prototypes putenv pwent rand48 readdir regex select sendfile servent setjmp siglist sigsetjmp speed spent sprintf sscanf stdarg strcasecmp strcmp strncat strncpy strptime strrchr strstr strtol sysconf sysenter ungetc utime waitpid"
+ 
+ STDIN="read1"
+ PASS="getpass" 
+diff --git a/test/sendfile.c b/test/sendfile.c
+index d43cdd2..28b3af5 100644
+--- a/test/sendfile.c
++++ b/test/sendfile.c
+@@ -11,5 +11,5 @@ int main() {
+ 
+   printf("sendfile returned %d\n",ret);
+ 
+-return 0;    
++  return ret<0 ? 1 : 0;
+ }
+diff --git a/test/setjmp.c b/test/setjmp.c
+new file mode 100644
+index 0000000..15951e5
+--- /dev/null
++++ b/test/setjmp.c
+@@ -0,0 +1,106 @@
++#include <assert.h>
++#include <stdlib.h>
++#include <string.h>
++#include <setjmp.h>
++
++static int Xmemcmp(void const volatile *a, void const volatile *b, size_t l)
++{
++  return memcmp((void const *)a, (void const *)b, l);
++}
++
++int main(void)
++{
++  char volatile a[8] = "testbufA";
++  jmp_buf env;
++  char volatile b[8] = "testbufB";
++
++  assert(Xmemcmp(a, "testbufA", 8) == 0);
++  assert(Xmemcmp(b, "testbufB", 8) == 0);
++
++
++  /* Test 1: not calling longjmp */
++  if (setjmp(env) == 0) {
++    char volatile somebuf[128];
++
++    memset((void *)somebuf, 0xde, sizeof somebuf);
++
++    assert(Xmemcmp(a, "testbufA", 8) == 0);
++    assert(Xmemcmp(b, "testbufB", 8) == 0);
++  } else
++    assert(0);
++
++  assert(Xmemcmp(a, "testbufA", 8) == 0);
++  assert(Xmemcmp(b, "testbufB", 8) == 0);
++
++
++  /* Test 2: calling longjmp */
++  switch (setjmp(env)) {
++  case 0: {
++    char volatile somebuf[128];
++
++    memset((void *)somebuf, 0xde, sizeof somebuf);
++
++    assert(Xmemcmp(a, "testbufA", 8) == 0);
++    assert(Xmemcmp(b, "testbufB", 8) == 0);
++
++    longjmp(env, 23);
++
++    a[0] = 'X';
++    b[0] = 'X';
++  }
++
++  case 23:
++    break;
++
++  default:
++    assert(0);
++  }
++
++  assert(Xmemcmp(a, "testbufA", 8) == 0);
++  assert(Xmemcmp(b, "testbufB", 8) == 0);
++
++
++  /* Test 3: calling longjmp again with dirty env */
++  switch (setjmp(env)) {
++  case 0: {
++    char volatile somebuf[128];
++
++    memset((void *)somebuf, 0xde, sizeof somebuf);
++
++    assert(Xmemcmp(a, "testbufA", 8) == 0);
++    assert(Xmemcmp(b, "testbufB", 8) == 0);
++
++    longjmp(env, 23);
++
++    a[0] = 'X';
++    b[0] = 'X';
++  }
++
++  case 23:
++    break;
++
++  default:
++    assert(0);
++  }
++
++  assert(Xmemcmp(a, "testbufA", 8) == 0);
++  assert(Xmemcmp(b, "testbufB", 8) == 0);
++
++
++ /* Test 4: not calling longjmp, but dirty env */
++  if (setjmp(env) == 0) {
++    char volatile somebuf[128];
++
++    memset((void *)somebuf, 0xde, sizeof somebuf);
++
++    assert(Xmemcmp(a, "testbufA", 8) == 0);
++    assert(Xmemcmp(b, "testbufB", 8) == 0);
++  } else
++    assert(0);
++
++  assert(Xmemcmp(a, "testbufA", 8) == 0);
++  assert(Xmemcmp(b, "testbufB", 8) == 0);
++
++
++  return EXIT_SUCCESS;
++}
+diff --git a/test/sigsetjmp.c b/test/sigsetjmp.c
+new file mode 100644
+index 0000000..3fa71bb
+--- /dev/null
++++ b/test/sigsetjmp.c
+@@ -0,0 +1,140 @@
++#include <assert.h>
++#include <stdlib.h>
++#include <stdio.h>
++#include <string.h>
++#include <signal.h>
++#include <setjmp.h>
++
++#define TEST_PATTERN	\
++	"0123456789abcdefghijklmnopqrstuv"	\
++	"ZYXWVUTSRQPONMLKJIHGFEDCBA987654"	\
++	"456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"	\
++	"vutsrqponmlkjihgfedcba9876543210"	\
++	"0123456789ABCDEFGHIJKLMNOPQRSTUV"	\
++	"zyxwvutsrqponmlkjihgfedcba987654"	\
++	"456789abcdefghijklmnopqrstuvwxyz"	\
++	"VUTSRQPONMLKJIHGFEDCBA987654321"	\
++
++static struct {
++	char volatile a[256];
++	sigjmp_buf env;
++	char volatile b[256];
++} sigenv = {
++	.a = TEST_PATTERN "<",
++	.b = TEST_PATTERN ">",
++};
++
++static int volatile sig_seen;
++
++#define VALIDATE_BUFFERS(_sig_exp) do {		\
++    assert(Xmemcmp(sigenv.a, TEST_PATTERN "<", sizeof sigenv.a) == 0);	\
++    assert(Xmemcmp(sigenv.b, TEST_PATTERN ">", sizeof sigenv.b) == 0);	\
++    assert(sig_seen == (_sig_exp));		\
++  } while (0)
++
++static int Xmemcmp(void const volatile *a, void const volatile *b, size_t l)
++{
++  return memcmp((void const *)a, (void const *)b, l);
++}
++
++static void do_test(int sig_num, int do_save, int block_sig)
++{
++  int		rc;
++  sigset_t	block_set;
++  sigset_t	cur_set;
++
++  printf("%s(%d,%d,%d)... ", __func__, sig_num, do_save, block_sig);
++  fflush(stdout);
++
++  VALIDATE_BUFFERS(0);
++
++  sigemptyset(&block_set);
++  assert(sigprocmask(SIG_SETMASK, NULL, &cur_set) == 0);
++
++  /* verify that tested signal is not blocked */
++  if (sig_num != 0)
++    assert(!sigismember(&cur_set, sig_num));
++
++  /* verify that blocked signal is not already blocked and fill signal set */
++  if (block_sig != 0) {
++    assert(!sigismember(&cur_set, block_sig));
++    sigaddset(&block_set, block_sig);
++  }
++
++  sig_seen = 0;
++  rc = sigsetjmp(sigenv.env, do_save);
++  if (rc == 0) {
++    char volatile somebuf[128];
++
++    memset((void *)somebuf, 0x42, sizeof somebuf);
++    VALIDATE_BUFFERS(0);
++
++    /* modify signal mask */
++    if (block_sig != 0)
++      assert(sigprocmask(SIG_BLOCK, &block_set, NULL) == 0);
++
++    /* raise a signal which triggers a siglongjmp */
++    if (sig_num != 0) {
++      raise(sig_num);
++      sigenv.a[0] = 'X';
++      sigenv.b[0] = 'X';
++      assert(0);
++    }
++  } else if (rc != sig_num)
++    /* sigsetjmp() returned with an unexpected value */
++    assert(0);
++
++  VALIDATE_BUFFERS(sig_num);
++  sig_seen = 0;
++
++  /* check whether current signal mask contains the blocked signal; it should
++     be there iff sigsetjmp() was triggered and sigmask was saved. */
++  if (block_sig != 0) {
++    sigset_t	cur_set;
++    assert(sigprocmask(SIG_SETMASK, NULL, &cur_set) == 0);
++
++    if (do_save && rc != 0)
++      assert(!sigismember(&cur_set, block_sig));
++    else {
++      assert( sigismember(&cur_set, block_sig));
++      sigprocmask(SIG_UNBLOCK, &block_set, NULL);
++    }
++  }
++
++  printf(" ok\n");
++};
++
++static void sig_handler(int num)
++{
++  assert(sig_seen == 0);
++  sig_seen = num;
++  siglongjmp(sigenv.env, num);
++}
++
++int main(void)
++{
++  struct sigaction sigact = {
++    .sa_handler	= sig_handler,
++    .sa_flags	= SA_NODEFER, /* raised signal will be in blocked mask else */
++  };
++
++  /* verify our assumptions about the memory layout */
++  assert(sizeof sigenv.a == 256);
++  assert(sizeof sigenv.b == 256);
++  assert(offsetof(__typeof__(sigenv), env) == sizeof sigenv.a);
++  assert(offsetof(__typeof__(sigenv), b)   == sizeof sigenv.a + sizeof sigenv.env);
++
++  sigaction(SIGBUS,  &sigact, NULL);
++  sigaction(SIGUSR1, &sigact, NULL);
++
++  do_test(0, 0, 0);
++  do_test(0, 0, SIGUSR1);
++  do_test(0, 1, 0);
++  do_test(0, 1, SIGUSR1);
++  do_test(SIGBUS, 0, 0);
++  do_test(SIGBUS, 0, SIGUSR1);
++  do_test(SIGBUS, 1, 0);
++  do_test(SIGBUS, 1, SIGUSR1);
++
++  return EXIT_SUCCESS;
++}
+diff --git a/test/speed.c b/test/speed.c
+index 674b9a8..22249a7 100644
+--- a/test/speed.c
++++ b/test/speed.c
+@@ -7,10 +7,10 @@ int main() {
+   int i;
+   time_t t;
+   
+-  printf("%d\n", time(0));
++  printf("%ld\n", (long)time(0));
+   for (i=0; i<10000000; ++i)
+     t=time(0);
+ 
+- printf("%d\n", time(0));
++  printf("%ld\n", (long)time(0));
+  return 0;   
+ }
+diff --git a/test/stdio/.gitignore b/test/stdio/.gitignore
+new file mode 100644
+index 0000000..8892d20
+--- /dev/null
++++ b/test/stdio/.gitignore
+@@ -0,0 +1,14 @@
++/tst-fdopen
++/tst-ferror
++/tst-fileno
++/tst-fphex
++/tst-fseek
++/tst-printf
++/tst-sprintf
++/tst-sscanf
++/tst-tmpnam
++/tst-unbputc
++/tst-ungetc
++/tstdiomisc
++/tstgetln
++/tstscanf
+diff --git a/test/stdio/tstscanf.c b/test/stdio/tstscanf.c
+index 44ddf49..0f55c3c 100644
+--- a/test/stdio/tstscanf.c
++++ b/test/stdio/tstscanf.c
+@@ -338,14 +338,14 @@ main (int argc, char **argv)
+     int res;
+ 
+     res = sscanf ("-InF", "%f", &value);
+-    if (res != 1 || isinf (value) != -1)
++    if (res != 1 || !isinf (value) || !(value<0))
+       {
+ 	fputs ("test failed!\n", stdout);
+ 	result = 1;
+       }
+ 
+     res = sscanf ("+InfiNiTY", "%f", &value);
+-    if (res != 1 || isinf (value) != 1)
++    if (res != 1 || !isinf (value) || !(value>0))
+       {
+ 	fputs ("test failed!\n", stdout);
+ 	result = 1;
+diff --git a/test/stdlib/.gitignore b/test/stdlib/.gitignore
+new file mode 100644
+index 0000000..ce37703
+--- /dev/null
++++ b/test/stdlib/.gitignore
+@@ -0,0 +1,13 @@
++/test-canon
++/testdiv
++/testrand
++/testsort
++/tst-calloc
++/tst-environ
++/tst-limits
++/tst-malloc
++/tst-rand48
++/tst-strtod
++/tst-strtol
++/tst-strtoll
++/tst-system
+diff --git a/test/stdlib/testsort.c b/test/stdlib/testsort.c
+index aa4332a..5a92bc0 100644
+--- a/test/stdlib/testsort.c
++++ b/test/stdlib/testsort.c
+@@ -1,3 +1,5 @@
++#define _BSD_SOURCE
++
+ #include <stdlib.h>
+ #include <string.h>
+ #include <stdio.h>
+diff --git a/test/stdlib/tst-calloc.c b/test/stdlib/tst-calloc.c
+index a9b9e2a..049117b 100644
+--- a/test/stdlib/tst-calloc.c
++++ b/test/stdlib/tst-calloc.c
+@@ -17,6 +17,8 @@
+    Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
+    02111-1307 USA.  */
+ 
++#define _BSD_SOURCE
++
+ #include <errno.h>
+ #include <limits.h>
+ #include <malloc.h>
+diff --git a/test/stdlib/tst-malloc.c b/test/stdlib/tst-malloc.c
+index 09fbb1f..4a491d9 100644
+--- a/test/stdlib/tst-malloc.c
++++ b/test/stdlib/tst-malloc.c
+@@ -21,13 +21,15 @@
+ #include <stdlib.h>
+ #include <stdio.h>
+ 
++#include "../../dietfeatures.h"
++
+ static int errors = 0;
+ 
+ static void
+ merror (const char *msg)
+ {
+   ++errors;
+-  printf ("Error: %s\n", msg);
++  fprintf (stderr, "Error: %s\n", msg);
+ }
+ 
+ int
+@@ -56,9 +58,11 @@ main (void)
+   if (p != NULL)
+     merror ("realloc (p, 0) failed.");
+ 
++#ifdef WANT_MALLOC_ZERO
+   p = malloc (0);
+   if (p == NULL)
+     merror ("malloc (0) failed.");
++#endif
+ 
+   p = realloc (p, 0);
+   if (p != NULL)
+diff --git a/test/stdlib/tst-strtod.c b/test/stdlib/tst-strtod.c
+index 630a8fc..bacdca7 100644
+--- a/test/stdlib/tst-strtod.c
++++ b/test/stdlib/tst-strtod.c
+@@ -149,10 +149,10 @@ main (int argc, char ** argv)
+     }
+ 
+   const char input2[] = "+1.000000000116415321826934814453125";
+-  if (strtold (input2, NULL) != +1.000000000116415321826934814453125)
++  if (strtold (input2, NULL) != +1.000000000116415321826934814453125L)
+     {
+       printf ("input2: %La != %La\n", strtold (input2, NULL),
+-	      +1.000000000116415321826934814453125);
++	      +1.000000000116415321826934814453125L);
+       status = 1;
+     }
+ 
+diff --git a/test/string/.gitignore b/test/string/.gitignore
+new file mode 100644
+index 0000000..94b11fc
+--- /dev/null
++++ b/test/string/.gitignore
+@@ -0,0 +1,16 @@
++/memccpy
++/memchr
++/memcmp
++/memcpy
++/mempcpy
++/memrchr
++/strcasecmp
++/strcmp
++/strcspn
++/strlen
++/strncat
++/strncpy
++/strpbrk
++/strrchr
++/strspn
++/strstr
+diff --git a/test/sysconf.c b/test/sysconf.c
+new file mode 100644
+index 0000000..32263a5
+--- /dev/null
++++ b/test/sysconf.c
+@@ -0,0 +1,80 @@
++#include <unistd.h>
++#include <stdio.h>
++#include <stdlib.h>
++#include <assert.h>
++#include <sys/wait.h>
++
++#include "../dietpagesize.h"
++
++static long exec_getconf(char const *var)
++{
++  char	buf[128];
++  pid_t	pid;
++  int	fd[2];
++  int	status;
++  ssize_t	l;
++
++  if (pipe(fd)<0 || (pid = fork())<0)
++    abort();
++
++  if (pid==0) {
++    close(fd[0]);
++
++    if (fd[1]!=1) {
++      dup2(fd[1], 1);
++      close(fd[1]);
++    }
++
++    execlp("getconf", "getconf", var, NULL);
++    _exit(1);
++  }
++
++  close(fd[1]);
++  l = read(fd[0], buf, sizeof(buf)-1);
++  if (l<0) {
++    perror("read()");
++    goto err;
++  } else if (l==sizeof(buf)-1)
++    goto err;
++  close(fd[0]);
++
++  buf[l] = '\0';
++
++  if (waitpid(pid, &status, 0)<0)
++    goto err;
++
++  if (!WIFEXITED(status) || WEXITSTATUS(status)!=0)
++    goto err;
++
++  return strtol(buf, NULL, 10);
++
++ err:
++  kill(pid, SIGKILL);
++  abort();
++}
++
++static unsigned int do_check(char const *var, long exp)
++{
++  long	cur = exec_getconf(var);
++
++  if (cur!=exp) {
++    fprintf(stderr, "%s mismatch: got %ld, expected %ld\n",
++	    var, cur, exp);
++    return 1;
++  }
++
++  return 0;
++}
++
++int main(int argc, char *argv[])
++{
++  unsigned int	err = 0;
++
++  assert(sysconf(_SC_PAGESIZE) == __DIET_PAGE_SIZE);
++  assert(__DIET_PAGE_SIZE == (1<<__DIET_PAGE_SHIFT));
++
++  err += do_check("PAGE_SIZE", sysconf(_SC_PAGESIZE));
++  err += do_check("CLK_TCK",   sysconf(_SC_CLK_TCK));
++
++  return err;
++}
+diff --git a/test/sysenter.c b/test/sysenter.c
+index a8fa3a8..3d85916 100644
+--- a/test/sysenter.c
++++ b/test/sysenter.c
+@@ -11,11 +11,11 @@ int main() {
+   int i;
+   for (i=0; environ[i]; ++i) ;
+   for (x=(struct elf_aux*)(environ+i+1); x->type; ++x) {
+-    printf("%d %x\n",x->type,x->value);
++    printf("%ld %lx\n",x->type,x->value);
+     if (x->type==AT_PAGESZ)
+-      printf("pagesize %d\n",x->value);
++      printf("pagesize %ld\n",x->value);
+     else if (x->type==AT_SYSINFO)
+-      printf("vsyscall %p\n",x->value);
++      printf("vsyscall %p\n",(void *)x->value);
+   }
+   return 0;
+ }
+diff --git a/test/time/.gitignore b/test/time/.gitignore
+new file mode 100644
+index 0000000..dcd3b38
+--- /dev/null
++++ b/test/time/.gitignore
+@@ -0,0 +1,4 @@
++/tst-mktime
++/tst-posixtz
++/tst-strftime
++/tst-strptime
+diff --git a/test/time/tst-strftime.c b/test/time/tst-strftime.c
+index e092e93..27db9a4 100644
+--- a/test/time/tst-strftime.c
++++ b/test/time/tst-strftime.c
+@@ -49,18 +49,18 @@ int main (void) {
+ 
+       if (res == 0)
+ 	{
+-	  printf ("%Zu: %s: res == 0 despite size == %Zu\n",
++	  printf ("%zu: %s: res == 0 despite size == %zu\n",
+ 		  cnt, tests[cnt].fmt, size);
+ 	  result = 1;
+ 	}
+       else if (size < tests[cnt].min)
+ 	{
+-	  printf ("%Zu: %s: size == %Zu was enough\n",
++	  printf ("%zu: %s: size == %zu was enough\n",
+ 		  cnt, tests[cnt].fmt, size);
+ 	  result = 1;
+ 	}
+       else
+-	printf ("%Zu: %s: size == %Zu: OK\n", cnt, tests[cnt].fmt, size);
++	printf ("%zu: %s: size == %zu: OK\n", cnt, tests[cnt].fmt, size);
+ 
+       free (buf);
+     }
+diff --git a/test/time/tst-strptime.c b/test/time/tst-strptime.c
+index 6277ea6..2773180 100644
+--- a/test/time/tst-strptime.c
++++ b/test/time/tst-strptime.c
+@@ -41,10 +41,12 @@ static const struct
+   { "C", "03/03/00", "%D", 5, 62, 2, 3 },
+   { "C", "9/9/99", "%x", 4, 251, 8, 9 },
+   { "C", "19990502123412", "%Y%m%d%H%M%S", 0, 121, 4, 2 },
++#if 0		/* dietlibc does not support %U/%W/%j and non-POSIX locales */
+   { "C", "2001 20 Mon", "%Y %U %a", 1, 140, 4, 21 },
+   { "C", "2001 21 Mon", "%Y %W %a", 1, 140, 4, 21 },
+   { "ja_JP.EUC-JP", "2001 20 \xb7\xee", "%Y %U %a", 1, 140, 4, 21 },
+   { "ja_JP.EUC-JP", "2001 21 \xb7\xee", "%Y %W %a", 1, 140, 4, 21 },
++#endif
+ };
+ 
+ 
+@@ -72,9 +74,16 @@ test_tm (void)
+ 
+   for (i = 0; i < sizeof (tm_tests) / sizeof (tm_tests[0]); ++i)
+     {
++      char *pres;
+       memset (&tm, '\0', sizeof (tm));
+-      
+-      if (strptime (tm_tests[i].input, tm_tests[i].format, &tm) != '\0')
++
++      pres = strptime (tm_tests[i].input, tm_tests[i].format, &tm);
++      if (!pres)
++	{
++	  fprintf(stderr, "failed to parse '%s'\n", day_tests[i].input);
++	  result = 1;
++	}
++      else if (*pres != '\0')
+ 	{
+ 	  printf ("not all of `%s' read\n", tm_tests[i].input);
+ 	  result = 1;
+@@ -118,6 +127,7 @@ int main (void) {
+ 
+   for (i = 0; i < sizeof (day_tests) / sizeof (day_tests[0]); ++i)
+     {
++      char *pres;
+       memset (&tm, '\0', sizeof (tm));
+ 
+       if (setlocale (LC_ALL, day_tests[i].locale) == NULL)
+@@ -125,7 +135,14 @@ int main (void) {
+ 	  printf ("cannot set locale %s: %m\n", day_tests[i].locale);
+ 	}
+ 
+-      if (*strptime (day_tests[i].input, day_tests[i].format, &tm) != '\0')
++      pres = strptime (day_tests[i].input, day_tests[i].format, &tm);
++      if (!pres)
++	{
++	  fprintf(stderr, "failed to parse '%s' for locale '%s'\n",
++		  day_tests[i].input, day_tests[i].locale);
++	  result = 1;
++	}
++      else if (*pres != '\0')
+ 	{
+ 	  printf ("not all of `%s' read\n", day_tests[i].input);
+ 	  result = 1;
+diff --git a/test/waitpid.c b/test/waitpid.c
+index fe2cb5b..92c0b0e 100644
+--- a/test/waitpid.c
++++ b/test/waitpid.c
+@@ -11,7 +11,7 @@ int main() {
+     perror("fork");
+     _exit(1);
+   case 0:
+-    fprintf(stderr,"child, my pid is %u\n",getpid());
++    fprintf(stdout,"child, my pid is %u\n",getpid());
+     sleep(1);
+     _exit(23);
+   }
+diff --git a/x86_64/__time.S b/x86_64/__time.S
+new file mode 100644
+index 0000000..774b67f
+--- /dev/null
++++ b/x86_64/__time.S
+@@ -0,0 +1,11 @@
++/* implement time(2) via gettimeofday(2) on x86-64 because gettimeofday
++   is a vsyscall (i.e. no actual switch to kernel mode) */
++.text
++.global time
++.type time,@function
++time:
++	mov	$0xffffffffff600400,%rax
++	call	*%rax
++	ret
++.Lhere:
++	.size	 time,.Lhere-time
+diff --git a/x86_64/start.S b/x86_64/start.S
+index adc461a..8b4f3c9 100644
+--- a/x86_64/start.S
++++ b/x86_64/start.S
+@@ -12,12 +12,28 @@ _start:
+ 	
+ 	leaq	8(%rsi,%rdi,8),%rdx	/* %rdx = envp = (8*rdi)+%rsi+8 */
+ 
++
++#ifdef WANT_ELFINFO
++#ifdef __DYN_LIB
++	movq	environ@GOTPCREL(%rip), %rax
++#else
++	leaq	environ(%rip), %rax
++#endif
++	movq	%rdx, (%rax)	/* environ */
++
++1:	add	$8, %rdx	/* increment envp */
++	cmpq	$0, -8(%rdx)	/* load envp[-1] */
++	jne	1b		/* ... until envp[-1]==NULL */
++
++	movq	%rdx, 8(%rax)	/* __elfinfo */
++#else
+ #ifdef __DYN_LIB
+ 	movq	environ@GOTPCREL(%rip), %rax
+ 	movq	%rdx, (%rax)
+ #else
+ 	movq	%rdx, environ(%rip)
+ #endif
++#endif
+ 
+ #ifdef PROFILING
+ 	pushq	%rdi			/* save reg args */
+diff --git a/x86_64/time.S b/x86_64/time.S
+index 774b67f..690ee30 100644
+--- a/x86_64/time.S
++++ b/x86_64/time.S
+@@ -1,11 +1 @@
+-/* implement time(2) via gettimeofday(2) on x86-64 because gettimeofday
+-   is a vsyscall (i.e. no actual switch to kernel mode) */
+-.text
+-.global time
+-.type time,@function
+-time:
+-	mov	$0xffffffffff600400,%rax
+-	call	*%rax
+-	ret
+-.Lhere:
+-	.size	 time,.Lhere-time
++/* avoid empty source file */

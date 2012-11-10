@@ -1,0 +1,25 @@
+diff -p -up ./include/string.h.readdir_r ./include/string.h
+--- ./include/string.h.readdir_r	2010-08-01 19:56:21.000000000 +0000
++++ ./include/string.h	2012-01-13 17:26:34.874692256 +0000
+@@ -80,6 +80,10 @@ size_t strxfrm(char *dest, const char *
+ #include <strings.h>
+ #endif
+ 
++#ifndef basename
++char *basename(char *path);
++#endif
++
+ char *stpcpy(char * __restrict__ dest, const char * __restrict__ src) __THROW __nonnull((1,2));
+ char* stpncpy(char* __restrict__ dest, const char* __restrict__ src, size_t n) __THROW __nonnull((1,2));
+ 
+diff -p -up ./lib/basename.c.readdir_r ./lib/basename.c
+--- ./lib/basename.c.readdir_r	2012-01-13 17:25:23.852624082 +0000
++++ ./lib/basename.c	2012-01-13 17:25:23.852624082 +0000
+@@ -0,0 +1,7 @@
++#include <string.h>
++
++char *basename(char *path) {
++  char *p = strrchr (path, '/');
++  return p ? p + 1 : path;
++}
++

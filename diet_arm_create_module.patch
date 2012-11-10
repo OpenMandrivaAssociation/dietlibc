@@ -1,0 +1,35 @@
+commit e089222252887cd6b61026141601ed12dbcabafa
+Author: Arnaud Patard <apatard@mandriva.com>
+Date:   Thu Jul 9 15:05:53 2009 +0000
+
+    arm: create_module doesn't exist
+    
+    Return -ENOSYS for create_module
+    
+    Signed-off-by: Arnaud Patard <apatard@mandriva.com>
+
+diff --git a/arm/Makefile.add b/arm/Makefile.add
+index 768eea9..004543b 100644
+--- a/arm/Makefile.add
++++ b/arm/Makefile.add
+@@ -1,5 +1,5 @@
+ 
+-LIBOBJ+=$(OBJDIR)/md5asm.o $(OBJDIR)/__aeabi_unwind_cpp.o
++LIBOBJ+=$(OBJDIR)/md5asm.o $(OBJDIR)/__aeabi_unwind_cpp.o $(OBJDIR)/__create_module.o
+ LIBOBJ+=$(OBJDIR)/__fadvise.o $(OBJDIR)/arm_fadvise.o
+ CFLAGS+=-Os -fomit-frame-pointer -fstrict-aliasing
+ #ifdef __ARM_EABI__
+diff --git a/arm/__create_module.c b/arm/__create_module.c
+new file mode 100644
+index 0000000..9d219bc
+--- /dev/null
++++ b/arm/__create_module.c
+@@ -0,0 +1,8 @@
++#include <unistd.h>
++#include <errno.h>
++
++long create_module(const char *name, size_t size)
++{
++	errno = ENOSYS;
++	return -1;
++}

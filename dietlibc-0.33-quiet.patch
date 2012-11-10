@@ -1,0 +1,20 @@
+diff -p -up ./test/bsearch.c.quiet ./test/bsearch.c
+--- ./test/bsearch.c.quiet	2012-01-13 10:38:23.000000000 +0000
++++ ./test/bsearch.c	2012-01-13 10:38:58.343669157 +0000
+@@ -28,14 +28,14 @@ int main() {
+       if (array[i]<array[i+1])
+ 	die("not sorted after qsort!\n");
+     for (i=0; i<j; ++i) {
+-      printf("element %d: ",i);
++      //printf("element %d: ",i);
+       k=bsearch(array+i,array,j,sizeof(int),compint);
+       if (!k) {
+ 	k=bsearch(array+i,array,j,sizeof(int),compint);
+ 	die("bsearch returned NULL\n");
+       }
+       if (k != array+i) die("bsearch found wrong element\n");
+-      printf("%ld\n",k-array);
++      //printf("%ld\n",k-array);
+     }
+   }
+   return 0;

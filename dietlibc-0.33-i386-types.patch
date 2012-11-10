@@ -1,0 +1,23 @@
+Index: include/sys/types.h
+===================================================================
+RCS file: /cvs/dietlibc/include/sys/types.h,v
+retrieving revision 1.30
+diff -U2 -r1.30 types.h
+--- include/sys/types.h	18 Oct 2007 21:08:02 -0000	1.30
++++ include/sys/types.h	20 May 2010 09:51:48 -0000
+@@ -38,13 +38,13 @@ typedef uint64_t fsfilcnt_t;
+              Used to identify a thread.
+ */
+ 
+-#if defined(__alpha__) || defined(__ia64__) || defined(__sparc64__) || defined(__s390x__)
++#if defined(__alpha__) || defined(__i386__) || defined(__ia64__) || defined(__sparc64__) || defined(__s390x__)
+     typedef uint32_t dev_t;		/* Used for device IDs. */
+     typedef uint32_t gid_t;		/* Used for group IDs. */
+     typedef uint32_t mode_t;		/* Used for some file attributes. */
+     typedef uint32_t nlink_t;		/* Used for link counts. */
+     typedef uint32_t uid_t;		/* Used for user IDs. */
+-#elif defined(__arm__) || defined(__i386__) || defined(__sparc__) || defined(__s390__) /* make sure __s390x__ hits before __s390__ */
++#elif defined(__arm__) || defined(__sparc__) || defined(__s390__) /* make sure __s390x__ hits before __s390__ */
+     typedef uint32_t dev_t;
+     typedef uint16_t gid_t;
+     typedef uint16_t mode_t;

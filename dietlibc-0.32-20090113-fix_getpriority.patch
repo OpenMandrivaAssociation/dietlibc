@@ -1,0 +1,40 @@
+diff -p -up dietlibc-0.32-20090113/lib/__getpriority.c.orig dietlibc-0.32-20090113/lib/__getpriority.c
+--- dietlibc-0.32-20090113/lib/__getpriority.c.orig	2009-10-09 00:23:16.000000000 -0300
++++ dietlibc-0.32-20090113/lib/__getpriority.c	2009-10-09 00:31:29.000000000 -0300
+@@ -0,0 +1,12 @@
++#include <sys/resource.h>
++
++extern int __syscall_getpriority(int which, int who);
++
++int getpriority(int which, int who) {
++	int r;
++
++	r = __syscall_getpriority(which, who);
++	if (r >= 0)
++		r = 20 - r;
++	return r;
++}
+diff -p -up dietlibc-0.32-20090113/syscalls.s/getpriority.S.orig dietlibc-0.32-20090113/syscalls.s/getpriority.S
+--- dietlibc-0.32-20090113/syscalls.s/getpriority.S.orig	2009-10-09 00:20:55.000000000 -0300
++++ dietlibc-0.32-20090113/syscalls.s/getpriority.S	2009-10-09 00:22:43.000000000 -0300
+@@ -1,3 +1,3 @@
+ #include "syscalls.h"
+ 
+-syscall(getpriority,getpriority)
++syscall(getpriority,__syscall_getpriority)
+diff -p -up dietlibc-0.32-20090113/x86_64/getpriority.S.orig dietlibc-0.32-20090113/x86_64/getpriority.S
+--- dietlibc-0.32-20090113/x86_64/getpriority.S.orig	2007-03-26 00:06:59.000000000 -0300
++++ dietlibc-0.32-20090113/x86_64/getpriority.S	2009-10-09 00:32:47.000000000 -0300
+@@ -1,12 +0,0 @@
+-#include "syscalls.h"
+-
+-.text
+-.global getpriority
+-.type   getpriority,@function
+-getpriority:
+-     mov     $__NR_getpriority,%al
+-     xorq    %rsi,%rsi
+-     call    __unified_syscall
+-     neg     %rax    /* the value is bios by 20 to avoid negative values */
+-     add     $20,%rax
+-     ret

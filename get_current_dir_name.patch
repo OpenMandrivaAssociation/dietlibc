@@ -1,0 +1,54 @@
+diff -p -up ./include/unistd.h.tv ./include/unistd.h
+--- ./include/unistd.h.tv	2012-01-08 04:48:46.585527984 +0100
++++ ./include/unistd.h	2012-01-08 04:49:38.163083228 +0100
+@@ -45,6 +45,7 @@ int chdir(const char *path) __THROW;
+ int fchdir(int fd) __THROW;
+ int rmdir(const char *pathname) __THROW;
+ char *getcwd(char *buf, size_t size) __THROW;
++char * get_current_dir_name (void) __THROW;
+ 
+ int open(const char* pathname,int flags, ...) __THROW;
+ int open64(const char* pathname,int flags, ...) __THROW;
+diff -p -up ./lib/__getcwd.c.tv ./lib/__getcwd.c
+--- ./lib/__getcwd.c.tv	2012-01-08 04:48:46.598529635 +0100
++++ ./lib/__getcwd.c	2012-01-08 04:50:03.289276636 +0100
+@@ -1,6 +1,9 @@
+ #include <unistd.h>
+ #include <stdlib.h>
+ #include <errno.h>
++#include <sys/stat.h>
++#include <limits.h>
++#include <string.h>
+ 
+ extern int __syscall_getcwd(char* buf, size_t size);
+ 
+@@ -15,3 +17,29 @@ char *getcwd(char *buf, size_t size) {
+   }
+   return buf;
+ }
++
++
++/* Return a malloc'd string containing the current directory name.
++   If the environment variable `PWD' is set, and its value is correct,
++   that value is used.  */
++
++char* get_current_dir_name (void)
++{ 
++  char *pwd;
++  struct stat64 dotstat, pwdstat;
++
++  pwd = getenv ("PWD");
++  if (pwd != NULL
++      && stat (".", &dotstat) == 0
++      && stat (pwd, &pwdstat) == 0
++      && pwdstat.st_dev == dotstat.st_dev
++      && pwdstat.st_ino == dotstat.st_ino)
++    /* The PWD value is correct.  Use it.  */
++    return strdup (pwd);
++
++  pwd = malloc(PATH_MAX);
++  getcwd(pwd, PATH_MAX);
++  pwd = realloc(pwd, strlen(pwd)+1);
++  return pwd;
++}
++
