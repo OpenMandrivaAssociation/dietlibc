@@ -1,0 +1,102 @@
+--- dietlibc-0.27/ppc64/fstat64.S.ppc64-stat64	2004-12-14 16:42:35.133243126 -0500
++++ dietlibc-0.27/ppc64/fstat64.S	2004-12-14 16:41:44.393443111 -0500
+@@ -0,0 +1,3 @@
++#include "syscalls.h"
++
++syscall(fstat,fstat64)
+--- dietlibc-0.27/include/sys/stat.h.ppc64-stat64	2004-12-14 16:35:30.714030000 -0500
++++ dietlibc-0.27/include/sys/stat.h	2004-12-14 16:56:57.545574927 -0500
+@@ -248,8 +248,7 @@ __extension__ long long	st_size;
+ 	unsigned long	st_pad2;
+ __extension__ long long	st_blocks;
+ };
+-#elif defined(powerpc) || defined(__powerpc64__)
+-#if defined(powerpc)
++#elif defined(powerpc)
+ struct stat {
+ 	dev_t		st_dev;
+ 	ino_t		st_ino;
+@@ -270,29 +269,6 @@ struct stat {
+ 	unsigned long	__unused4;
+ 	unsigned long	__unused5;
+ };
+-#else
+-struct stat {
+-	unsigned long	st_dev;
+-	ino_t		st_ino;
+-	nlink_t		st_nlink;
+-	mode_t		st_mode;
+-	uid_t 		st_uid;
+-	gid_t 		st_gid;
+-	unsigned long	st_rdev;
+-	off_t		st_size;
+-	unsigned long  	st_blksize;
+-	unsigned long  	st_blocks;
+-	unsigned long  	st_atime;
+-	unsigned long	st_atime_nsec;
+-	unsigned long  	st_mtime;
+-	unsigned long  	st_mtime_nsec;
+-	unsigned long  	st_ctime;
+-	unsigned long  	st_ctime_nsec;
+-	unsigned long  	__unused4;
+-	unsigned long  	__unused5;
+-	unsigned long  	__unused6;
+-};
+-#endif
+ 
+ /* This matches struct stat64 in glibc2.1.
+  */
+@@ -318,6 +294,53 @@ __extension__	long long st_blocks;		/* N
+ 	unsigned long int __unused4;
+ 	unsigned long int __unused5;
+ };
++
++#elif defined(__powerpc64__)
++struct stat {
++	unsigned long	st_dev;
++	ino_t		st_ino;
++	nlink_t		st_nlink;
++	mode_t		st_mode;
++	uid_t 		st_uid;
++	gid_t 		st_gid;
++	unsigned long	st_rdev;
++	off_t		st_size;
++	unsigned long  	st_blksize;
++	unsigned long  	st_blocks;
++	unsigned long  	st_atime;
++	unsigned long	st_atime_nsec;
++	unsigned long  	st_mtime;
++	unsigned long  	st_mtime_nsec;
++	unsigned long  	st_ctime;
++	unsigned long  	st_ctime_nsec;
++	unsigned long  	__unused4;
++	unsigned long  	__unused5;
++	unsigned long  	__unused6;
++};
++
++/* no difference is expected from struct stat */
++struct stat64 {
++	unsigned long	st_dev;
++	ino_t		st_ino;
++	nlink_t		st_nlink;
++	mode_t		st_mode;
++	uid_t 		st_uid;
++	gid_t 		st_gid;
++	unsigned long	st_rdev;
++	off_t		st_size;
++	unsigned long  	st_blksize;
++	unsigned long  	st_blocks;
++	unsigned long  	st_atime;
++	unsigned long	st_atime_nsec;
++	unsigned long  	st_mtime;
++	unsigned long  	st_mtime_nsec;
++	unsigned long  	st_ctime;
++	unsigned long  	st_ctime_nsec;
++	unsigned long  	__unused4;
++	unsigned long  	__unused5;
++	unsigned long  	__unused6;
++};
++
+ #elif defined(__arm__)
+ struct stat {
+ 	unsigned short	st_dev;

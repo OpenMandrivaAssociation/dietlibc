@@ -30,13 +30,13 @@
  
  HOME=$(shell pwd)
  
-@@ -318,7 +319,7 @@ $(OBJDIR)/diet: $(OBJDIR)/start.o $(OBJD
- 	$(STRIP) -R .comment -R .note $@
+@@ -308,7 +309,7 @@
+ 	$(CROSS)strip -R .comment -R .note $@
  
  $(OBJDIR)/diet-i: $(OBJDIR)/start.o $(OBJDIR)/dyn_start.o diet.c $(OBJDIR)/dietlibc.a $(OBJDIR)/dyn_stop.o
 -	$(CROSS)$(CC) -isystem include $(CFLAGS) -nostdlib -o $@ $^ -DDIETHOME=\"$(prefix)\" -DVERSION=\"$(VERSION)\" -DINSTALLVERSION -lgcc
 +	$(CROSS)$(CC) -isystem include $(CFLAGS) -nostdlib -o $@ $^ -DDIETHOME=\"$(INSTALLHOME)\" -DVERSION=\"$(VERSION)\" -DINSTALLVERSION -lgcc
- 	$(STRIP) -R .comment -R .note $@
+ 	$(CROSS)strip -R .comment -R .note $@
  
  $(PICODIR)/diet-dyn: $(PICODIR)/start.o $(PICODIR)/dyn_start.o diet.c
 @@ -380,7 +381,7 @@

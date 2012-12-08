@@ -1,0 +1,927 @@
+diff -Naurp dietlibc-0.32-20090113/alpha/start.S dietlibc-0.32-20090113.oden/alpha/start.S
+--- dietlibc-0.32-20090113/alpha/start.S	2006-04-04 07:35:14.000000000 +0200
++++ dietlibc-0.32-20090113.oden/alpha/start.S	2009-01-28 22:29:21.000000000 +0100
+@@ -24,6 +24,15 @@ _start:
+ 
+ 	stq	$18, environ
+ 
++#ifdef WANT_ELFINFO
++#  error "MAKE ME alpha ASSEMBLER!"
++1:	ldq	$19, $18	; load *envp into $19
++	addq	$18,  1,  $18	; increment *envp
++	orr	$19, $19, $19
++	jne	1b
++	stq	$18, __elfinfo
++#endif
++
+ #ifdef WANT_DYNAMIC
+ /* in v0 ($0) is the ld.so _fini pointer */
+ 	mov	 $0, $19	/* mov v0(dynload) to a3 */
+diff -Naurp dietlibc-0.32-20090113/arm/start.S dietlibc-0.32-20090113.oden/arm/start.S
+--- dietlibc-0.32-20090113/arm/start.S	2009-01-28 22:20:53.000000000 +0100
++++ dietlibc-0.32-20090113.oden/arm/start.S	2009-01-28 22:29:21.000000000 +0100
+@@ -59,11 +59,18 @@ _start:
+ #ifdef __DYN_LIB
+ 	ldr	sl, .L4
+ 1:	add	sl, pc, sl
+-	str	a3, [sl, ip]		@ environ = envp
++	str	a3, [ip, sl]!		@ environ = envp; ip = GOT(environ)
+ #else
+ 	str	a3, [ip, #0]		@ environ = envp
+ #endif
+ 
++#ifdef WANT_ELFINFO
++1:	ldr	r5, [a3], #4		@ load *envp and increment it
++	orr	r5, r5, r5		@ read value==0?
++	bne	1b
++	str	a3, [ip, #4]		@ __elfinfo = envp
++#endif
++
+ #ifdef PROFILING
+ 	stmdb	sp!, { r0 - r3 }
+ 	ldr	r0, .L5
+diff -Naurp dietlibc-0.32-20090113/arm/start.S.orig dietlibc-0.32-20090113.oden/arm/start.S.orig
+--- dietlibc-0.32-20090113/arm/start.S.orig	1970-01-01 01:00:00.000000000 +0100
++++ dietlibc-0.32-20090113.oden/arm/start.S.orig	2009-01-28 22:20:53.000000000 +0100
+@@ -0,0 +1,111 @@
++
++#include "dietfeatures.h"
++#include "syscalls.h"
++
++	.text
++#ifdef __ARM_EABI__
++	.align 4
++#else
++	.align 2
++#endif
++	
++	.global _start
++	.weak 	exit
++	.global _exit
++
++
++#ifdef __ARM_EABI__
++
++_start:
++
++	mov	fp, #0			@ clear the frame pointer
++	ldr	a1, [sp], #4		@ argc
++	mov	a2, sp			@ argv
++	ldr	ip, .L3
++	add	a3, a2, a1, lsl #2	@ &argv[argc]
++	add	a3, a3, #4		@ envp	
++	str	a3, [ip, #0]		@ environ = envp
++	bl	main
++		
++@
++@ The exit status from main() is already in r0.
++@ We need to branch to 'exit' in case we have linked with 'atexit'.
++@
++	bl	exit
++
++exit:
++_exit:
++
++	mov	r7, #__NR_exit		
++	swi	0			@ never returns.
++
++.L3:	.word 	environ
++
++	
++#else	
++
++	
++_start:
++
++#ifdef WANT_DYNAMIC
++	mov	a4, a1			@ save dynamic ld.so _fini
++#endif
++	mov	fp, #0			@ clear the frame pointer
++	ldr	a1, [sp], #4		@ argc
++	mov	a2, sp			@ argv
++	ldr	ip, .L3
++	add	a3, a2, a1, lsl #2	@ &argv[argc]
++	add	a3, a3, #4		@ envp
++#ifdef __DYN_LIB
++	ldr	sl, .L4
++1:	add	sl, pc, sl
++	str	a3, [sl, ip]		@ environ = envp
++#else
++	str	a3, [ip, #0]		@ environ = envp
++#endif
++
++#ifdef PROFILING
++	stmdb	sp!, { r0 - r3 }
++	ldr	r0, .L5
++	ldr	r1, .L6
++	bl	monitor
++	ldmia	sp!, { r0 - r3 }
++#endif
++
++#ifdef WANT_DYNAMIC
++	bl	_dyn_start
++#else
++	bl	CALL_IN_STARTCODE
++#endif
++
++@
++@ The exit status from main() is already in r0.
++@ We need to branch to 'exit' in case we have linked with 'atexit'.
++@
++	bl	exit
++
++exit:
++_exit:
++
++#ifdef PROFILING
++	mov	r4, r0			@ save a copy of exit status
++	bl	_stop_monitor
++	mov	r0, r4
++#endif
++	swi	$__NR_exit		@ never returns.
++
++
++#ifdef __DYN_LIB
++.L3:	.word 	environ(GOT)
++.L4:	.word 	_GLOBAL_OFFSET_TABLE_-(1b+8)
++#else
++.L3:	.word 	environ
++#endif
++
++#ifdef PROFILING
++.L5:	.word	.text
++.L6:	.word	_etext
++#endif
++
++
++#endif
+diff -Naurp dietlibc-0.32-20090113/dietdirent.h dietlibc-0.32-20090113.oden/dietdirent.h
+--- dietlibc-0.32-20090113/dietdirent.h	2002-07-03 22:33:37.000000000 +0200
++++ dietlibc-0.32-20090113.oden/dietdirent.h	2009-01-28 22:29:21.000000000 +0100
+@@ -1,8 +1,12 @@
+ #include <sys/shm.h>
+ 
++#include "dietpagesize.h"
++
+ struct __dirstream {
+   int fd;
+-  char buf[PAGE_SIZE-(sizeof (int)*3)];
+   unsigned int num;
+   unsigned int cur;
++  char buf[];
+ };				/* stream data from opendir() */
++
++#define __DIRSTREAM_BUF_SIZE	(__DIET_PAGE_SIZE - offsetof(struct __dirstream, buf))
+diff -Naurp dietlibc-0.32-20090113/dietelfinfo.h dietlibc-0.32-20090113.oden/dietelfinfo.h
+--- dietlibc-0.32-20090113/dietelfinfo.h	1970-01-01 01:00:00.000000000 +0100
++++ dietlibc-0.32-20090113.oden/dietelfinfo.h	2009-01-28 22:29:21.000000000 +0100
+@@ -0,0 +1,20 @@
++#include "dietfeatures.h"
++
++#ifdef WANT_ELFINFO
++#include <elf.h>
++#include <endian.h>
++#include <stdint.h>
++
++/* TODO: exported interface from <linux/elf.h> has been changed in 2.6.25 so
++ * the 'elf_addr_t' type is not available anymore. Hence, derive it from
++ * __WORDSIZE__. */
++
++#if __WORDSIZE == 64
++typedef uint64_t	__diet_elf_addr_t;
++#elif __WORDSIZE == 32
++typedef uint32_t	__diet_elf_addr_t;
++#endif
++
++__diet_elf_addr_t *	__get_elf_aux_value(unsigned int tag)
++	__attribute__((__visibility__("hidden"),__const__)) __pure;
++#endif
+diff -Naurp dietlibc-0.32-20090113/dietfeatures.h dietlibc-0.32-20090113.oden/dietfeatures.h
+--- dietlibc-0.32-20090113/dietfeatures.h	2009-01-28 22:29:07.000000000 +0100
++++ dietlibc-0.32-20090113.oden/dietfeatures.h	2009-01-28 22:29:21.000000000 +0100
+@@ -126,6 +126,16 @@
+ /* #define WANT_SSP_XOR */
+ 
+ 
++/* Some platforms like x86_64, ppc* or mips do not have a fixed PAGE_SIZE.
++ * Select WANT_DYN_PAGESIZE to detect the current PAGE_SIZE at runtime. Else,
++ * define WANT_STATIC_PAGESIZE to a proper value (must be a power of 2)
++ * matching the configured pagesize of the kernel where your binaries are
++ * running on.
++ *
++ * Selecting WANT_DYN_PAGESIZE enlarges the startup code by around 1-3
++ * instructions and might add an additional __elfinfo symbol */
++#define WANT_DYN_PAGESIZE
++/* #define WANT_STATIC_PAGESIZE 0x10000UL */
+ 
+ 
+ /* stop uncommenting here ;-) */
+@@ -157,4 +167,8 @@
+ #endif
+ #endif
+ 
++#ifdef WANT_DYN_PAGESIZE
++#define WANT_ELFINFO
++#endif
++
+ #endif
+diff -Naurp dietlibc-0.32-20090113/dietpagesize.h dietlibc-0.32-20090113.oden/dietpagesize.h
+--- dietlibc-0.32-20090113/dietpagesize.h	1970-01-01 01:00:00.000000000 +0100
++++ dietlibc-0.32-20090113.oden/dietpagesize.h	2009-01-28 22:29:21.000000000 +0100
+@@ -0,0 +1,31 @@
++#ifndef H_DIETLIBC_DIETPAGESIZE_H
++#define H_DIETLIBC_DIETPAGESIZE_H
++
++#include <strings.h>
++#include "dietfeatures.h"
++
++extern size_t __libc_getpagesize(void) __attribute__((__const__)) __pure;
++
++#if defined(WANT_STATIC_PAGESIZE)
++#  define __DIET_PAGE_SIZE_PREDEF	(WANT_STATIC_PAGESIZE)
++#  define __DIET_PAGE_SHIFT_PREDEF	(ffs(__DIET_PAGE_SIZE_PREDEF)-1)
++#elif defined(__alpha__) || defined(__sparc__)
++#  define __DIET_PAGE_SIZE_PREDEF	(8192UL)
++#  define __DIET_PAGE_SHIFT_PREDEF	(13)
++#elif defined(__powerpc64__)
++#  define __DIET_PAGE_SIZE_PREDEF	(65536UL)
++#  define __DIET_PAGE_SHIFT_PREDEF	(16)
++#else
++#  define __DIET_PAGE_SIZE_PREDEF	(4096UL)
++#  define __DIET_PAGE_SHIFT_PREDEF	(12)
++#endif
++
++#ifdef WANT_DYN_PAGESIZE
++#  define __DIET_PAGE_SIZE	(__libc_getpagesize())
++#  define __DIET_PAGE_SHIFT	(ffs(__DIET_PAGE_SIZE)-1)
++#else
++#  define __DIET_PAGE_SIZE	__DIET_PAGE_SIZE_PREDEF
++#  define __DIET_PAGE_SHIFT	__DIET_PAGE_SHIFT_PREDEF
++#endif
++
++#endif	/* H_DIETLIBC_DIETPAGESIZE_H */
+diff -Naurp dietlibc-0.32-20090113/dynlinker/ldso_start.S dietlibc-0.32-20090113.oden/dynlinker/ldso_start.S
+--- dietlibc-0.32-20090113/dynlinker/ldso_start.S	2006-10-13 22:11:13.000000000 +0200
++++ dietlibc-0.32-20090113.oden/dynlinker/ldso_start.S	2009-01-28 22:29:21.000000000 +0100
+@@ -86,6 +86,15 @@ __environ:
+ 	.long 0
+ #endif
+ 
++/* __elfinfo must follow __environ immediately */	
++.global __elfinfo
++__elfinfo:
++#if __WORDSIZE == 64
++	.quad 0
++#else
++	.long 0
++#endif
++
+ .global fini_entry
+ fini_entry:
+ 	.long 0
+diff -Naurp dietlibc-0.32-20090113/i386/start.S dietlibc-0.32-20090113.oden/i386/start.S
+--- dietlibc-0.32-20090113/i386/start.S	2006-04-04 07:35:14.000000000 +0200
++++ dietlibc-0.32-20090113.oden/i386/start.S	2009-01-28 22:29:21.000000000 +0100
+@@ -25,6 +25,13 @@ _start:
+ 	PIC_INIT			/* non-PIC: this is an empty line */
+ 	PUT_VAR %eax, environ, %ecx	/* non-PIC: movl %eax,environ */
+ 
++#ifdef WANT_ELFINFO
++1:	add	$4, %eax		/* increment envp */
++	cmpl	$0, -4(%eax)		/* load envp[-1] */
++	jne	1b			/* ... until envp[-1]==NULL */
++        PUT_VAR %eax, __elfinfo, %ecx
++#endif
++
+ #ifdef PROFILING
+ 	pushl	$_etext
+ 	pushl	$.text
+diff -Naurp dietlibc-0.32-20090113/ia64/start.S dietlibc-0.32-20090113.oden/ia64/start.S
+--- dietlibc-0.32-20090113/ia64/start.S	2006-04-04 07:35:14.000000000 +0200
++++ dietlibc-0.32-20090113.oden/ia64/start.S	2009-01-28 22:29:21.000000000 +0100
+@@ -40,6 +40,16 @@ _start:
+ 	;;
+ 	st8  [r14] = out2           /* store envp in environ */
+ 
++#ifdef WANT_ELFINFO
++#  error "MAKE ME IE64 CODE!"
++1:	ld8	r9 = [out2], 8	    /* load *envp and increment it */
++	orr	r9 = r9, r9	    /* test for NULL */ 
++	bne	1b
++
++	adds r14 = 8, r14	    /* __elfinfo = environ + 8 */ 
++	st8  [r14] = out2           /* store envp in __elfinfo */
++#endif
++
+ #ifdef WANT_DYNAMIC
+ /* FIXME: dl_init parameter ??? */
+ 	br.call.sptk.few rp = _dyn_start
+diff -Naurp dietlibc-0.32-20090113/include/sys/shm.h dietlibc-0.32-20090113.oden/include/sys/shm.h
+--- dietlibc-0.32-20090113/include/sys/shm.h	2005-09-21 09:33:08.000000000 +0200
++++ dietlibc-0.32-20090113.oden/include/sys/shm.h	2009-01-28 22:29:21.000000000 +0100
+@@ -60,15 +60,6 @@ struct shm_info {
+   unsigned long swap_successes;
+ };
+ 
+-#if defined(__i386__) || defined(__mips__) || defined(__arm__) || defined(__powerpc__) || defined (__powerpc64__) || defined(__s390__) || defined(__hppa__) || defined(__x86_64__) || defined(__ia64__)
+-#define PAGE_SIZE 4096UL
+-#define PAGE_SHIFT 12
+-#elif defined(__alpha__) || defined(__sparc__)
+-/* sun4* has 4k except sun4 architecture, sparc64 has 8k */
+-#define PAGE_SIZE 8192UL
+-#define PAGE_SHIFT 13
+-#endif
+-
+ extern int shmget(key_t key, int size, int shmflg) __THROW;
+ extern void *shmat(int shmid, const void *shmaddr, int shmflg) __THROW;
+ extern int shmdt (const void *shmaddr) __THROW;
+diff -Naurp dietlibc-0.32-20090113/lib/alloc.c dietlibc-0.32-20090113.oden/lib/alloc.c
+--- dietlibc-0.32-20090113/lib/alloc.c	2007-08-03 22:58:33.000000000 +0200
++++ dietlibc-0.32-20090113.oden/lib/alloc.c	2009-01-28 22:29:21.000000000 +0100
+@@ -18,8 +18,7 @@
+ #include <stdlib.h>
+ #include <string.h>
+ 
+-#include <sys/shm.h>	/* for PAGE_SIZE */
+-
++#include "../dietpagesize.h"
+ 
+ /* -- HELPER CODE --------------------------------------------------------- */
+ 
+@@ -39,7 +38,7 @@ typedef struct {
+ #define BLOCK_START(b)	(((void*)(b))-sizeof(__alloc_t))
+ #define BLOCK_RET(b)	(((void*)(b))+sizeof(__alloc_t))
+ 
+-#define MEM_BLOCK_SIZE	PAGE_SIZE
++#define MEM_BLOCK_SIZE	__DIET_PAGE_SIZE
+ #define PAGE_ALIGN(s)	(((s)+MEM_BLOCK_SIZE-1)&(unsigned long)(~(MEM_BLOCK_SIZE-1)))
+ 
+ /* a simple mmap :) */
+@@ -66,7 +65,9 @@ static __alloc_t* __small_mem[8];
+ 
+ #define FIRST_SMALL(p)		(((unsigned long)(p))&(~(MEM_BLOCK_SIZE-1)))
+ 
+-static inline int __ind_shift() { return (MEM_BLOCK_SIZE==4096)?4:5; }
++static inline int __ind_shift() {
++	return __DIET_PAGE_SHIFT - sizeof(__small_mem)/sizeof(__small_mem[0]);
++}
+ 
+ static size_t REGPARM(1) get_index(size_t _size) {
+   register size_t idx=0;
+diff -Naurp dietlibc-0.32-20090113/lib/closedir.c dietlibc-0.32-20090113.oden/lib/closedir.c
+--- dietlibc-0.32-20090113/lib/closedir.c	2002-07-03 22:33:37.000000000 +0200
++++ dietlibc-0.32-20090113.oden/lib/closedir.c	2009-01-28 22:29:21.000000000 +0100
+@@ -4,8 +4,10 @@
+ #include <dirent.h>
+ #include <stdlib.h>
+ 
++#include "../dietpagesize.h"
++
+ int closedir (DIR* d) {
+   int res=close(d->fd);
+-  munmap (d, PAGE_SIZE);
++  munmap (d, __DIET_PAGE_SIZE);
+   return res;
+ }
+diff -Naurp dietlibc-0.32-20090113/lib/mmap64.c dietlibc-0.32-20090113.oden/lib/mmap64.c
+--- dietlibc-0.32-20090113/lib/mmap64.c	2004-12-13 11:21:31.000000000 +0100
++++ dietlibc-0.32-20090113.oden/lib/mmap64.c	2009-01-28 22:29:21.000000000 +0100
+@@ -4,16 +4,18 @@
+ #include <syscalls.h>
+ #include <errno.h>
+ 
++#include "../dietpagesize.h"
++
+ #ifdef __NR_mmap2
+ void*__mmap2(void*start,size_t length,int prot,int flags,int fd,off_t pgoffset);
+ 
+ void*__libc_mmap64(void*addr,size_t len,int prot,int flags,int fd,off64_t offset);
+ void*__libc_mmap64(void*addr,size_t len,int prot,int flags,int fd,off64_t offset) {
+-  if (offset&(PAGE_SIZE-1)) {
++  if (offset&(__DIET_PAGE_SIZE)) {
+     errno=-EINVAL;
+     return MAP_FAILED;
+   }
+-  return __mmap2(addr,len,prot,flags,fd,offset>>PAGE_SHIFT);
++  return __mmap2(addr,len,prot,flags,fd,offset>>__DIET_PAGE_SHIFT);
+ }
+ 
+ void*mmap64(void*addr,size_t len,int prot,int flags,int fd,off64_t offset)
+diff -Naurp dietlibc-0.32-20090113/lib/opendir.c dietlibc-0.32-20090113.oden/lib/opendir.c
+--- dietlibc-0.32-20090113/lib/opendir.c	2002-07-03 22:33:38.000000000 +0200
++++ dietlibc-0.32-20090113.oden/lib/opendir.c	2009-01-28 22:29:21.000000000 +0100
+@@ -5,6 +5,8 @@
+ #include <stdlib.h>
+ #include <fcntl.h>
+ 
++#include "../dietpagesize.h"
++
+ DIR*  opendir ( const char* name ) {
+   int   fd = open (name, O_RDONLY | O_DIRECTORY);
+   DIR*  t  = NULL;
+@@ -12,7 +14,7 @@ DIR*  opendir ( const char* name ) {
+   if ( fd >= 0 ) {
+     if (fcntl (fd, F_SETFD, FD_CLOEXEC) < 0)
+       goto lose;
+-    t = (DIR *) mmap (NULL, PAGE_SIZE, PROT_READ | PROT_WRITE, 
++    t = (DIR *) mmap (NULL, __DIET_PAGE_SIZE, PROT_READ | PROT_WRITE, 
+ 		MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+     if (t == MAP_FAILED)
+ lose:
+diff -Naurp dietlibc-0.32-20090113/lib/readdir64.c dietlibc-0.32-20090113.oden/lib/readdir64.c
+--- dietlibc-0.32-20090113/lib/readdir64.c	2004-03-02 22:27:19.000000000 +0100
++++ dietlibc-0.32-20090113.oden/lib/readdir64.c	2009-01-28 22:29:21.000000000 +0100
+@@ -14,7 +14,7 @@
+ #ifndef WANT_LARGEFILE_BACKCOMPAT
+ struct dirent64* readdir64(DIR *d) {
+   if (!d->num || (d->cur += ((struct dirent64*)(d->buf+d->cur))->d_reclen)>=d->num) {
+-    int res=getdents64(d->fd,(struct dirent64*)d->buf, sizeof (d->buf)-1);
++    int res=getdents64(d->fd,(struct dirent64*)d->buf, __DIRSTREAM_BUF_SIZE-1);
+     if (res<=0) return 0;
+     d->num=res; d->cur=0;
+   }
+@@ -32,7 +32,7 @@ again:
+   if (!trygetdents64) {
+ #endif
+     if (!d->num || (d->cur += ((struct dirent*)(d->buf+d->cur))->d_reclen)>=d->num) {
+-      int res=getdents(d->fd,(struct dirent*)d->buf, sizeof (d->buf)-1);
++      int res=getdents(d->fd,(struct dirent*)d->buf, __DIRSTREAM_BUF_SIZE-1);
+       if (res<=0) return 0;
+       d->num=res; d->cur=0;
+     }
+@@ -46,7 +46,7 @@ again:
+ #ifdef __NR_getdents64
+   }
+   if (!d->num || (d->cur += ((struct dirent64*)(d->buf+d->cur))->d_reclen)>=d->num) {
+-    int res=getdents64(d->fd,(struct dirent64*)d->buf,sizeof (d->buf));
++    int res=getdents64(d->fd,(struct dirent64*)d->buf,__DIRSTREAM_BUF_SIZE);
+     if (res<=0) {
+       if (errno==ENOSYS) {
+ 	trygetdents64=0;
+diff -Naurp dietlibc-0.32-20090113/lib/readdir.c dietlibc-0.32-20090113.oden/lib/readdir.c
+--- dietlibc-0.32-20090113/lib/readdir.c	2002-07-03 22:33:38.000000000 +0200
++++ dietlibc-0.32-20090113.oden/lib/readdir.c	2009-01-28 22:29:21.000000000 +0100
+@@ -5,7 +5,7 @@
+ 
+ struct dirent* readdir(DIR *d) {
+   if (!d->num || (d->cur += ((struct dirent*)(d->buf+d->cur))->d_reclen)>=d->num) {
+-    int res=getdents(d->fd,(struct dirent*)d->buf,sizeof (d->buf)-1);
++    int res=getdents(d->fd,(struct dirent*)d->buf,__DIRSTREAM_BUF_SIZE-1);
+     if (res<=0) return 0;
+     d->num=res; d->cur=0;
+   }
+diff -Naurp dietlibc-0.32-20090113/libcruft/__get_elf_aux_value.c dietlibc-0.32-20090113.oden/libcruft/__get_elf_aux_value.c
+--- dietlibc-0.32-20090113/libcruft/__get_elf_aux_value.c	1970-01-01 01:00:00.000000000 +0100
++++ dietlibc-0.32-20090113.oden/libcruft/__get_elf_aux_value.c	2009-01-28 22:29:21.000000000 +0100
+@@ -0,0 +1,14 @@
++#include <stdlib.h>
++#include "../dietelfinfo.h"
++
++__diet_elf_addr_t *__get_elf_aux_value(unsigned int tag)
++{
++  extern __diet_elf_addr_t const * const	__elfinfo;
++  __diet_elf_addr_t				*aux_ptr;
++
++  for (aux_ptr = __elfinfo; aux_ptr[0]!=AT_NULL; aux_ptr += 2)
++    if (aux_ptr[0]==tag)
++      return aux_ptr+1;
++
++  return NULL;
++}
+diff -Naurp dietlibc-0.32-20090113/libcruft/getpagesize.c dietlibc-0.32-20090113.oden/libcruft/getpagesize.c
+--- dietlibc-0.32-20090113/libcruft/getpagesize.c	2002-02-23 23:18:42.000000000 +0100
++++ dietlibc-0.32-20090113.oden/libcruft/getpagesize.c	2009-01-28 22:29:21.000000000 +0100
+@@ -2,14 +2,22 @@
+ #include <sys/ipc.h>
+ #include <sys/shm.h>
+ 
+-#ifndef PAGE_SIZE
+-#define PAGE_SIZE 4096
+-#endif
++#include "../dietelfinfo.h"
++#include "../dietpagesize.h"
+ 
+-size_t __libc_getpagesize(void);
+ size_t __libc_getpagesize(void) {
+-  return PAGE_SIZE;
++#ifdef WANT_DYN_PAGESIZE
++  static size_t	pgsz;
++
++  if (__unlikely(pgsz==0)) {
++    __diet_elf_addr_t	*v = __get_elf_aux_value(AT_PAGESZ);
++    pgsz = *v;	/* causes segfault when 'v==NULL' */
++  }
++
++  return pgsz;
++#else
++  return __DIET_PAGE_SIZE_PREDEF;
++#endif
+ }
+ 
+ size_t getpagesize(void)       __attribute__((weak,alias("__libc_getpagesize")));
+-
+diff -Naurp dietlibc-0.32-20090113/libcruft/sysconf.c dietlibc-0.32-20090113.oden/libcruft/sysconf.c
+--- dietlibc-0.32-20090113/libcruft/sysconf.c	2002-12-20 14:32:37.000000000 +0100
++++ dietlibc-0.32-20090113.oden/libcruft/sysconf.c	2009-01-28 22:29:21.000000000 +0100
+@@ -3,6 +3,9 @@
+ #include <limits.h>
+ #include <sys/resource.h>
+ 
++#include "dietelfinfo.h"
++#include "dietpagesize.h"
++
+ extern int __sc_nr_cpus();
+ 
+ long sysconf(int name)
+@@ -16,6 +19,14 @@ long sysconf(int name)
+       return limit.rlim_cur;
+     }
+   case _SC_CLK_TCK:
++#ifdef WANT_ELFINFO
++    {
++      __diet_elf_addr_t	*v = __get_elf_aux_value(AT_CLKTCK);
++      if (v)
++	return *v;
++    }
++#endif
++
+ #ifdef __alpha__
+     return 1024;
+ #else
+@@ -23,11 +34,7 @@ long sysconf(int name)
+ #endif
+ 
+   case _SC_PAGESIZE:
+-#if ( defined(__alpha__) || defined(__sparc__) )
+-    return 8192;
+-#else
+-    return 4096;
+-#endif
++    return __libc_getpagesize();
+ 
+   case _SC_ARG_MAX:
+     return ARG_MAX;
+diff -Naurp dietlibc-0.32-20090113/mips/start.S dietlibc-0.32-20090113.oden/mips/start.S
+--- dietlibc-0.32-20090113/mips/start.S	2006-04-04 07:35:14.000000000 +0200
++++ dietlibc-0.32-20090113.oden/mips/start.S	2009-01-28 22:29:21.000000000 +0100
+@@ -47,6 +47,15 @@ __start:
+ #endif
+ 	add	$a2, $a2, $a1
+ 	sw	$a2, environ
++#ifdef WANT_ELFINFO
++#  error "MAKE ME MIPS CODE!"
++1:	addu	$a2, $a2, 4	/* increment envp */
++	lw	$4, -4($a2)     /* load envp[-1]; TODO: is $4 a proper 
++				   temporary register? */
++	bnz	1b		/* ... until envp[-1]==NULL 
++				   TODO: use proper 'bnz' operation */
++	sw	$a2, __elfinfo
++#endif
+ 	jalr	$25
+ 	la	$25, exit
+ 	move	$4,$2
+diff -Naurp dietlibc-0.32-20090113/parisc/start.S dietlibc-0.32-20090113.oden/parisc/start.S
+--- dietlibc-0.32-20090113/parisc/start.S	2006-04-04 07:35:14.000000000 +0200
++++ dietlibc-0.32-20090113.oden/parisc/start.S	2009-01-28 22:29:21.000000000 +0100
+@@ -34,6 +34,16 @@ _start:
+ 	ldil LP%environ, %r19
+ 	ldo RP%environ(%r19), %r19
+ 
++#ifdef WANT_ELFINFO
++#  error "MAKE ME PARISC CODE!"
++1:	add %r20, %r19, %r19		; envp += 4
++	ldw -4(0,%r19), %r21		; load envp[-4] into %r21
++	comibf =,0, 0,%21,1b		; compare %21 with 0 without nullification
++ 
++	ldil LP%__elfinfo, %r19
++	ldo RP%__elfinfo(%r19), %r19
++#endif	
++
+ 	/* Expand the stack to store the 5th through 7th args */
+ 	ldo 64(%sp), %sp
+ 
+diff -Naurp dietlibc-0.32-20090113/ppc/start.S dietlibc-0.32-20090113.oden/ppc/start.S
+--- dietlibc-0.32-20090113/ppc/start.S	2006-04-04 07:35:14.000000000 +0200
++++ dietlibc-0.32-20090113.oden/ppc/start.S	2009-01-28 22:29:21.000000000 +0100
+@@ -31,6 +31,15 @@ _start:
+ 	lis	14,environ@ha
+ 	stw	5,environ@l(14)
+ 
++#ifdef WANT_ELFINFO
++1:	lwzu	15,0(5)
++	addi	5, 5, 4
++	cmpwi	15,0
++	bne	1b
++	
++	stw	5,__elfinfo@l(14)
++#endif
++
+ #ifdef WANT_DYNAMIC
+ 	mr	6,7
+ 	bl	_dyn_start
+diff -Naurp dietlibc-0.32-20090113/ppc64/start.S dietlibc-0.32-20090113.oden/ppc64/start.S
+--- dietlibc-0.32-20090113/ppc64/start.S	2006-04-04 07:35:14.000000000 +0200
++++ dietlibc-0.32-20090113.oden/ppc64/start.S	2009-01-28 22:29:21.000000000 +0100
+@@ -58,6 +58,15 @@ _start:
+ 	oris	14,14,environ@ha
+ 	std	5,environ@l(14)
+ 
++#ifdef WANT_ELFINFO
++1:	ldu	15,0(5)
++	addi	5, 5, 8
++	cmpdi	15,0
++	bne	1b
++
++	std	5,__elfinfo@l(14)
++#endif
++
+ #ifdef WANT_DYNAMIC
+ /* #warning dynamic */
+ 	mr	6,7
+diff -Naurp dietlibc-0.32-20090113/s390/start.S dietlibc-0.32-20090113.oden/s390/start.S
+--- dietlibc-0.32-20090113/s390/start.S	2006-04-04 07:35:14.000000000 +0200
++++ dietlibc-0.32-20090113.oden/s390/start.S	2009-01-28 22:29:21.000000000 +0100
+@@ -30,6 +30,17 @@ _start:
+ 	l	%r1,8(%r13)
+ 	st	%r4,0(%r1)
+ 
++#ifdef WANT_ELFINFO
++#  error "VERIFY ME!"
++1:	ahi	%r4, 4		# increment envp
++	l	%r12, -4(0,%r4)	# load envp[-1] into %r12
++	or	%r12, %r12	# test %r12 for NULL
++	brc	1, 1b
++  
++	ahi	%r1, 4
++	st	%r4,0(%r1)
++#endif
++
+ /* call main or _dyn_start */
+ 	l	%r1,0(%r13)
+ 	basr	%r14,%r1
+diff -Naurp dietlibc-0.32-20090113/s390x/start.S dietlibc-0.32-20090113.oden/s390x/start.S
+--- dietlibc-0.32-20090113/s390x/start.S	2006-04-04 07:35:14.000000000 +0200
++++ dietlibc-0.32-20090113.oden/s390x/start.S	2009-01-28 22:29:21.000000000 +0100
+@@ -26,6 +26,17 @@ _start:
+ 	larl	%r13,environ
+ 	stg	%r4,0(%r13)
+ 
++#ifdef WANT_ELFINFO
++#  error "VERIFY ME!"
++1:	aghi	%r4, 8		# increment envp
++	lg	%r12, -8(0,%r4)	# load envp[-1] into %r12
++	ogr	%r12, %r12	# test %r12 for NULL
++	brc	1, 1b
++
++	aghi	%r13, 8
++	stg	%r4,0(%r13)
++#endif	
++
+ /* call main or _dyn_start */
+ #ifdef WANT_DYNAMIC
+ 	brasl	%r14,_dyn_start
+diff -Naurp dietlibc-0.32-20090113/sparc/shmat.c dietlibc-0.32-20090113.oden/sparc/shmat.c
+--- dietlibc-0.32-20090113/sparc/shmat.c	2001-06-16 19:48:57.000000000 +0200
++++ dietlibc-0.32-20090113.oden/sparc/shmat.c	2009-01-28 22:29:21.000000000 +0100
+@@ -3,17 +3,15 @@
+ #include <sys/shm.h>
+ #include <unistd.h>
+ 
+-extern void* __ipc();
++#include "../dietpagesize.h"
+ 
+-#ifndef PAGE_SIZE
+-#define PAGE_SIZE 4096
+-#endif
++extern void* __ipc();
+ 
+ void* shmat(int shmid,const void* shmaddr,int shmflg) {
+   void* raddr;
+   register void* result;
+   result=__ipc(SHMAT,shmid,shmflg,&raddr,shmaddr);
+-  if ((unsigned long)result <= -(unsigned long)PAGE_SIZE)
++  if ((unsigned long)result <= -(unsigned long)__DIET_PAGE_SIZE)
+     result=raddr;
+   return result;
+ }
+diff -Naurp dietlibc-0.32-20090113/sparc/start.S dietlibc-0.32-20090113.oden/sparc/start.S
+--- dietlibc-0.32-20090113/sparc/start.S	2006-04-04 07:35:14.000000000 +0200
++++ dietlibc-0.32-20090113.oden/sparc/start.S	2009-01-28 22:29:21.000000000 +0100
+@@ -25,6 +25,17 @@ _start:
+ 	or	%o3, %lo(environ), %o3
+ 	st	%o2, [%o3]
+ 
++#ifdef WANT_ELFINFO
++#  error "VERIFY ME!"
++1:	add	%o2, %o2, 4
++	ld	[%o2-4], %o4
++	orcc	%o4, %o4, %o4
++	bne	1b
++
++	add	%o3, %o3, 4
++	st	%o2, [%o3]
++#endif
++
+ /* When starting a binary via the dynamic linker, %g1 contains the
+    address of the shared library termination function, which will be
+    registered with atexit(). If we are statically linked, this will
+diff -Naurp dietlibc-0.32-20090113/sparc64/start.S dietlibc-0.32-20090113.oden/sparc64/start.S
+--- dietlibc-0.32-20090113/sparc64/start.S	2006-04-04 07:35:14.000000000 +0200
++++ dietlibc-0.32-20090113.oden/sparc64/start.S	2009-01-28 22:29:21.000000000 +0100
+@@ -25,6 +25,17 @@ _start:
+ 	or	%o3, %lo(environ), %o3
+ 	stx	%o2, [%o3]
+ 
++#ifdef WANT_ELFINFO
++#  error "VERIFY ME!"
++1:	add	%o2, %o2, 8
++	ldx	[%o2-8], %o4
++	orcc	%o4, %o4, %o4
++	bne	1b
++
++	add	%o3, %o3, 8
++	stx	%o2, [%o3]
++#endif
++
+ /* When starting a binary via the dynamic linker, %g1 contains the
+    address of the shared library termination function, which will be
+    registered with atexit(). If we are statically linked, this will
+diff -Naurp dietlibc-0.32-20090113/syscalls.s/environ.S dietlibc-0.32-20090113.oden/syscalls.s/environ.S
+--- dietlibc-0.32-20090113/syscalls.s/environ.S	2004-09-28 02:01:30.000000000 +0200
++++ dietlibc-0.32-20090113.oden/syscalls.s/environ.S	2009-01-28 22:29:21.000000000 +0100
+@@ -1,6 +1,7 @@
+ .section ".bss"
+ .align 8
+ #include <endian.h>
++#include <dietfeatures.h>
+ 
+ .type environ,object
+ .weak environ
+@@ -15,3 +16,22 @@ environ:
+ #endif
+ .size environ,.-environ
+ .size __environ,.-__environ
++
++/* __elfinfo will be a copy of __environ after startup.  Later, it will be
++   updated by __get_elf_aux_value() to point to the terminating NULL of the
++   environment.
++	
++   Startup code assumes that __elfinfo is located immediately after
++   __environ. */
++
++#ifdef WANT_ELFINFO
++.type __elfinfo,object
++.weak __elfinfo
++__elfinfo:
++#if __WORDSIZE == 64
++	.quad 0
++#else
++	.long 0
++#endif
++.size __elfinfo,.-__elfinfo
++#endif
+diff -Naurp dietlibc-0.32-20090113/test/Makefile dietlibc-0.32-20090113.oden/test/Makefile
+--- dietlibc-0.32-20090113/test/Makefile	2009-01-28 22:29:08.000000000 +0100
++++ dietlibc-0.32-20090113.oden/test/Makefile	2009-01-28 22:29:21.000000000 +0100
+@@ -14,7 +14,7 @@ glob grent hasmntopt hello iconv if_name
+ memccpy memchr memcmp memrchr memusage mktime mmap_test pipe printf printftest \
+ protoent prototypes putenv pwent rand48 read1 readdir regex select sendfile servent siglist \
+ speed spent sprintf sscanf stdarg strcasecmp strcmp strncat strncpy strptime strrchr \
+-strstr strtol strncmp sysenter ungetc waitpid
++strstr strtol strncmp sysconf sysenter ungetc waitpid
+ 
+ test: $(TESTPROGRAMS)
+ 
+diff -Naurp dietlibc-0.32-20090113/test/runtests.sh dietlibc-0.32-20090113.oden/test/runtests.sh
+--- dietlibc-0.32-20090113/test/runtests.sh	2008-02-23 01:02:19.000000000 +0100
++++ dietlibc-0.32-20090113.oden/test/runtests.sh	2009-01-28 22:29:21.000000000 +0100
+@@ -1,6 +1,6 @@
+ SUBDIRS="dirent inet stdio string stdlib time"
+ 
+-TESTPROGRAMS="adjtime argv atexit bsearch byteswap calloc confstr empty flush fputc ffs fnmatch ftw fwrite getaddrinfo getenv getdelim getgrnam gethostbyaddr gethostbyname gethostbyname_r getmntent getopt getpwnam getservbyname getservbyport getusershell glob grent hasmntopt hello iconv if_nameindex ltostr malloc-debugger md5_testharness memccpy memchr memcmp memrchr memusage mktime mmap_test pipe printf printftest protoent prototypes putenv pwent rand48 readdir regex select sendfile servent siglist speed spent sprintf sscanf stdarg strcasecmp strcmp strncat strncpy strptime strrchr strstr strtol sysenter ungetc waitpid"
++TESTPROGRAMS="adjtime argv atexit bsearch byteswap calloc confstr empty flush fputc ffs fnmatch ftw fwrite getaddrinfo getenv getdelim getgrnam gethostbyaddr gethostbyname gethostbyname_r getmntent getopt getpwnam getservbyname getservbyport getusershell glob grent hasmntopt hello iconv if_nameindex ltostr malloc-debugger md5_testharness memccpy memchr memcmp memrchr memusage mktime mmap_test pipe printf printftest protoent prototypes putenv pwent rand48 readdir regex select sendfile servent siglist speed spent sprintf sscanf stdarg strcasecmp strcmp strncat strncpy strptime strrchr strstr strtol sysconf sysenter ungetc waitpid"
+ 
+ STDIN="read1"
+ PASS="getpass" 
+diff -Naurp dietlibc-0.32-20090113/test/sysconf.c dietlibc-0.32-20090113.oden/test/sysconf.c
+--- dietlibc-0.32-20090113/test/sysconf.c	1970-01-01 01:00:00.000000000 +0100
++++ dietlibc-0.32-20090113.oden/test/sysconf.c	2009-01-28 22:29:21.000000000 +0100
+@@ -0,0 +1,80 @@
++#include <unistd.h>
++#include <stdio.h>
++#include <stdlib.h>
++#include <assert.h>
++#include <sys/wait.h>
++
++#include "../dietpagesize.h"
++
++static long exec_getconf(char const *var)
++{
++  char	buf[128];
++  pid_t	pid;
++  int	fd[2];
++  int	status;
++  ssize_t	l;
++
++  if (pipe(fd)<0 || (pid = fork())<0)
++    abort();
++
++  if (pid==0) {
++    close(fd[0]);
++
++    if (fd[1]!=1) {
++      dup2(fd[1], 1);
++      close(fd[1]);
++    }
++
++    execlp("getconf", "getconf", var, NULL);
++    _exit(1);
++  }
++
++  close(fd[1]);
++  l = read(fd[0], buf, sizeof(buf)-1);
++  if (l<0) {
++    perror("read()");
++    goto err;
++  } else if (l==sizeof(buf)-1)
++    goto err;
++  close(fd[0]);
++
++  buf[l] = '\0';
++
++  if (waitpid(pid, &status, 0)<0)
++    goto err;
++
++  if (!WIFEXITED(status) || WEXITSTATUS(status)!=0)
++    goto err;
++
++  return strtol(buf, NULL, 10);
++
++ err:
++  kill(pid, SIGKILL);
++  abort();
++}
++
++static unsigned int do_check(char const *var, long exp)
++{
++  long	cur = exec_getconf(var);
++
++  if (cur!=exp) {
++    fprintf(stderr, "%s mismatch: got %ld, expected %ld\n",
++	    var, cur, exp);
++    return 1;
++  }
++
++  return 0;
++}
++
++int main(int argc, char *argv[])
++{
++  unsigned int	err = 0;
++
++  assert(sysconf(_SC_PAGESIZE) == __DIET_PAGE_SIZE);
++  assert(__DIET_PAGE_SIZE == (1<<__DIET_PAGE_SHIFT));
++
++  err += do_check("PAGE_SIZE", sysconf(_SC_PAGESIZE));
++  err += do_check("CLK_TCK",   sysconf(_SC_CLK_TCK));
++
++  return err;
++}
+diff -Naurp dietlibc-0.32-20090113/test/z dietlibc-0.32-20090113.oden/test/z
+--- dietlibc-0.32-20090113/test/z	1970-01-01 01:00:00.000000000 +0100
++++ dietlibc-0.32-20090113.oden/test/z	2009-01-28 22:29:21.000000000 +0100
+@@ -0,0 +1,2 @@
++- strstr strtol sysenter ungetc waitpid
+++ strstr strtol sysconf sysenter ungetc waitpid
+diff -Naurp dietlibc-0.32-20090113/x86_64/start.S dietlibc-0.32-20090113.oden/x86_64/start.S
+--- dietlibc-0.32-20090113/x86_64/start.S	2006-04-04 07:35:14.000000000 +0200
++++ dietlibc-0.32-20090113.oden/x86_64/start.S	2009-01-28 22:29:21.000000000 +0100
+@@ -12,12 +12,28 @@ _start:
+ 	
+ 	leaq	8(%rsi,%rdi,8),%rdx	/* %rdx = envp = (8*rdi)+%rsi+8 */
+ 
++
++#ifdef WANT_ELFINFO
++#ifdef __DYN_LIB
++	movq	environ@GOTPCREL(%rip), %rax
++#else
++	leaq	environ(%rip), %rax
++#endif
++  	movq	%rdx, (%rax)	/* environ */
++
++1:	add	$8, %rdx	/* increment envp */
++	cmpq	$0, -8(%rdx)	/* load envp[-1] */
++	jne	1b		/* ... until envp[-1]==NULL */
++
++	movq	%rdx, 8(%rax)	/* __elfinfo */
++#else
+ #ifdef __DYN_LIB
+ 	movq	environ@GOTPCREL(%rip), %rax
+ 	movq	%rdx, (%rax)
+ #else
+ 	movq	%rdx, environ(%rip)
+ #endif
++#endif
+ 
+ #ifdef PROFILING
+ 	pushq	%rdi			/* save reg args */

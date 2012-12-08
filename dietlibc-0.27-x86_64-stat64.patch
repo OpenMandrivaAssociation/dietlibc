@@ -45,7 +45,7 @@
 --- dietlibc-0.31/include/sys/stat.h~	2007-12-31 18:18:46.000000000 +0100
 +++ dietlibc-0.31/include/sys/stat.h	2007-12-31 18:20:06.000000000 +0100
 @@ -540,7 +563,7 @@
- 	unsigned long	st_ctime_nsec;
+ 	unsigned long	__reserved2;
  	long		__unused[3];
  };
 -

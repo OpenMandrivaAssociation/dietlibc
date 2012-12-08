@@ -1,0 +1,32 @@
+From 406e0419735c9e9c00290d437e9f42f88c3ae6d2 Mon Sep 17 00:00:00 2001
+From: Enrico Scholz <enrico.scholz@informatik.tu-chemnitz.de>
+Date: Sat, 19 Apr 2008 17:50:24 +0200
+Subject: [PATCH] Sanity checks for syscall availability
+
+Catch the case when syscall(2) is not implemented for the actual arch
+instead of jumping to the next function and executing the wrong code
+---
+ libcompat/syscall.S |    8 +++++++-
+ 1 files changed, 7 insertions(+), 1 deletions(-)
+
+diff --git a/libcompat/syscall.S b/libcompat/syscall.S
+index c9f72bb..6b6a8aa 100644
+--- a/libcompat/syscall.S
++++ b/libcompat/syscall.S
+@@ -130,6 +130,12 @@ syscall:
+ 	b    __unified_syscall
+ 
+ #else
+-		/* arch not implemented yet */
++#include <endian.h>
++	.section	.note
++#if (__WORDSIZE == 64)	
++	.quad		__syscall_2_not_implemented_for_this_arch
++#else	
++	.long		__syscall_2_not_implemented_for_this_arch
++#endif
+ #endif
+ .size	syscall, . - syscall
+-- 
+1.5.4.5
+

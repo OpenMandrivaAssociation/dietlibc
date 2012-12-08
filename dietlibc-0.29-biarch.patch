@@ -68,8 +68,8 @@ diff -Naurp dietlibc-0.32-20080509/Makefile dietlibc-0.32-20080509.oden/Makefile
  
  HOME=$(shell pwd)
  
--WHAT=	$(OBJDIR)/start.o $(OBJDIR)/dyn_start.o $(OBJDIR)/dyn_stop.o \
-+LIBS=	$(OBJDIR)/start.o $(OBJDIR)/dyn_start.o $(OBJDIR)/dyn_stop.o \
+-WHAT=	$(OBJDIR) $(OBJDIR)/start.o $(OBJDIR)/dyn_start.o $(OBJDIR)/dyn_stop.o \
++LIBS=	$(OBJDIR) $(OBJDIR)/start.o $(OBJDIR)/dyn_start.o $(OBJDIR)/dyn_stop.o \
  	$(OBJDIR)/dietlibc.a $(OBJDIR)/liblatin1.a \
  	$(OBJDIR)/libcompat.a $(OBJDIR)/libm.a \
  	$(OBJDIR)/librpc.a $(OBJDIR)/libpthread.a \

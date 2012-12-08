@@ -1,0 +1,17 @@
+Index: libstdio/fgetc_unlocked.c
+===================================================================
+RCS file: /cvs/dietlibc/libstdio/fgetc_unlocked.c,v
+retrieving revision 1.10
+retrieving revision 1.11
+diff -u -r1.10 -r1.11
+--- libstdio/fgetc_unlocked.c	13 Jan 2009 17:58:38 -0000	1.10
++++ libstdio/fgetc_unlocked.c	12 Feb 2009 22:36:26 -0000	1.11
+@@ -11,7 +11,7 @@
+ 
+   /* common case first */
+   if (__likely(stream->bm<stream->bs))
+-    return stream->buf[stream->bm++];
++    return ((unsigned char*)(stream->buf))[stream->bm++];
+ 
+   if (__unlikely(feof_unlocked(stream)))
+     return EOF;

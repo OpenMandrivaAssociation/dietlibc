@@ -21,10 +21,10 @@ diff -Naurp dietlibc-0.32-20080509/test/Makefile dietlibc-0.32-20080509.oden/tes
 +++ dietlibc-0.32-20080509.oden/test/Makefile	2008-06-08 12:50:25.000000000 -0400
 @@ -14,7 +14,7 @@ glob grent hasmntopt hello iconv if_name
  memccpy memchr memcmp memrchr memusage mktime mmap_test pipe printf printftest \
- protoent prototypes putenv pwent rand48 read1 readdir regex select sendfile servent setjmp siglist \
- sigsetjmp speed spent sprintf sscanf stdarg strcasecmp strcmp strncat strncpy strptime strrchr \
--strstr strtol sysconf sysenter ungetc utime waitpid
-+strstr strtol strncmp sysconf sysenter ungetc utime waitpid
+ protoent prototypes putenv pwent rand48 read1 readdir regex select sendfile servent siglist \
+ speed spent sprintf sscanf stdarg strcasecmp strcmp strncat strncpy strptime strrchr \
+-strstr strtol sysenter ungetc waitpid
++strstr strtol strncmp sysenter ungetc waitpid
  
  test: $(TESTPROGRAMS)
  
