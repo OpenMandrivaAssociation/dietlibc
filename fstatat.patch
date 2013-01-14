@@ -1,0 +1,12 @@
+--- ./syscalls.s/fstatat.S.tv	2012-09-26 08:47:32.494182127 +0200
++++ ./syscalls.s/fstatat.S	2012-09-26 08:47:40.731808069 +0200
+@@ -1,5 +1,7 @@
+ #include "syscalls.h"
+ 
+-#ifdef __NR_fstatat
+-syscall(fstatat,fstatat)
++#ifdef __NR_newfstatat
++syscall(newfstatat,fstatat)
++#else
++syscall(fstatat64,fstatat)
+ #endif

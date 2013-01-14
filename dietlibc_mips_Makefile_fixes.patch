@@ -1,0 +1,75 @@
+---
+ Makefile          |   15 	13 +	2 -	0 !
+ diet.c            |    9 	6 +	3 -	0 !
+ mips/Makefile.add |    2 	1 +	1 -	0 !
+ 3 files changed, 20 insertions(+), 6 deletions(-)
+
+Index: dietlibc-0.32-20090113/diet.c
+===================================================================
+--- dietlibc-0.32-20090113.orig/diet.c	2009-05-26 10:14:21.000000000 -0400
++++ dietlibc-0.32-20090113/diet.c	2009-05-26 10:15:11.000000000 -0400
+@@ -33,8 +33,8 @@ static const char* Os[] = {
+   "sparc64","-Os","-m64","-mhard-quad-float",0,
+   "alpha","-Os","-fomit-frame-pointer",0,
+   "arm","-Os","-fomit-frame-pointer",0,
+-  "mips","-Os","-fomit-frame-pointer","-march=mips2",0,
+-  "mipsel","-Os","-fomit-frame-pointer","-march=mips2",0,
++  "mips","-Os","-fomit-frame-pointer",0,
++  "mipsel","-Os","-fomit-frame-pointer",0,
+   "ppc","-Os","-fomit-frame-pointer","-mpowerpc-gpopt","-mpowerpc-gfxopt",0,
+   "ppc64","-Os","-fomit-frame-pointer","-mpowerpc-gpopt","-mpowerpc-gfxopt",0,
+   "s390","-Os","-fomit-frame-pointer",0,
+Index: dietlibc-0.32-20090113/mips/Makefile.add
+===================================================================
+--- dietlibc-0.32-20090113.orig/mips/Makefile.add	2006-06-21 16:06:30.000000000 -0400
++++ dietlibc-0.32-20090113/mips/Makefile.add	2009-05-26 10:14:39.000000000 -0400
+@@ -9,6 +9,6 @@
+ ifeq ($(CROSS),mips-linux-)
+ ENDIAN=-meb
+ endif
+-CFLAGS+=$(ENDIAN) -Os -march=mips2
++CFLAGS+=$(ENDIAN) -Os
+ VPATH:=mips:syscalls.s:$(VPATH)
+ LIBOBJ+=$(OBJDIR)/pread64.o $(OBJDIR)/pwrite64.o $(OBJDIR)/divdi3.o $(OBJDIR)/__CAS.o
+Index: dietlibc-0.32-20090113/Makefile
+===================================================================
+--- dietlibc-0.32-20090113.orig/Makefile	2009-05-26 10:14:21.000000000 -0400
++++ dietlibc-0.32-20090113/Makefile	2009-05-26 10:14:39.000000000 -0400
+@@ -88,6 +88,12 @@ INSTALLHOME=$(LIBDIR)/dietlibc
+ 
+ OBJDIR=bin-$(ARCH)
+ ILIBDIR=$(INSTALLHOME)/lib-$(ARCH)
++ifeq ($(ARCH),mips)
++ifeq ($(shell perl -e '$$le = unpack("h*", pack("s", 1)) =~ /^1/; exit $$le;' || echo "mipsel"),mipsel)
++OBJDIR=bin-mipsel
++ILIBDIR=$(INSTALLHOME)/lib-mipsel
++endif
++endif
+ 
+ HOME=$(shell pwd)
+ 
+@@ -167,6 +173,11 @@ PWD=$(shell pwd)
+ 
+ # added real dynamic dietlibc.so
+ PICODIR = pic-$(ARCH)
++ifeq ($(ARCH),mips)
++ifeq ($(shell perl -e '$$le = unpack("h*", pack("s", 1)) =~ /^1/; exit $$le;' || echo "mipsel"),mipsel)
++PICODIR = pic-mipsel
++endif
++endif
+ 
+ % :: %,v
+ 
+@@ -311,10 +322,10 @@ $(PICODIR)/libm.so: $(DYN_LIBMATH_OBJS) 
+ $(SYSCALLOBJ): syscalls.h
+ 
+ $(OBJDIR)/elftrunc: $(OBJDIR)/diet contrib/elftrunc.c
+-	bin-$(MYARCH)/diet $(CROSS)$(CC) $(CFLAGS) -o $@ contrib/elftrunc.c
++	$(OBJDIR)/diet $(CROSS)$(CC) $(CFLAGS) -o $@ contrib/elftrunc.c
+ 
+ $(OBJDIR)/dnsd: $(OBJDIR)/diet contrib/dnsd.c
+-	bin-$(MYARCH)/diet $(CROSS)$(CC) $(CFLAGS) -o $@ contrib/dnsd.c
++	$(OBJDIR)/diet $(CROSS)$(CC) $(CFLAGS) -o $@ contrib/dnsd.c
+ 
+ VERSION=dietlibc-$(shell head -n 1 CHANGES|sed 's/://')
+ CURNAME=$(notdir $(shell pwd))

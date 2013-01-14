@@ -1,113 +1,3 @@
- .gitignore                 |    1 +
- Makefile                   |   76 +++++++++++++----------
- alpha/start.S              |    9 +++
- arm/__aeabi_unwind_cpp.S   |   25 +++-----
- arm/__fadvise.c            |    5 +-
- arm/__guard.S              |    3 +
- arm/__longjmp.S            |   13 +++--
- arm/__testandset.S         |   16 ++++-
- arm/arm-features.h         |  103 ++++++++++++++++++++++++++++++++
- arm/clone.S                |   22 ++++----
- arm/dyn_syscalls.S         |   18 ++++--
- arm/mcount.S               |   10 +--
- arm/md5asm.S               |   26 +++-----
- arm/mmap.S                 |   42 -------------
- arm/setjmp.S               |   29 +++++----
- arm/start.S                |   65 +++++++++++++--------
- arm/strcpy.S               |   12 +---
- arm/strlen.S               |   15 +----
- arm/syscalls.h             |   65 ++++----------------
- arm/unified.S              |   45 +++++++++-----
- arm/waitpid.S              |   19 ++----
- dietdirent.h               |    6 ++-
- dietelfinfo.h              |   20 ++++++
- dietfeatures.h             |   14 +++++
- dietpagesize.h             |   31 ++++++++++
- dynlinker/ldso_start.S     |    9 +++
- i386/start.S               |    8 ++-
- ia64/start.S               |   10 +++
- include/paths.h            |    2 +-
- include/stdlib.h           |    8 ++-
- include/sys/shm.h          |    9 ---
- lib/__dtostr.c             |   18 ++++--
- lib/__get_elf_aux_value.c  |   14 +++++
- lib/__nice.c               |    8 ++-
- lib/__utime.c              |    5 +-
- lib/__v_printf.c           |   59 ++++++++++---------
- lib/alloc.c                |    9 ++-
- lib/closedir.c             |    4 +-
- lib/mmap64.c               |    6 +-
- lib/opendir.c              |    4 +-
- lib/readdir.c              |    2 +-
- lib/readdir64.c            |    6 +-
- lib/stack_smash_handler2.c |   13 ++++-
- lib/stackgap.c             |   37 ++++++++++-
- libcompat/syscall.S        |    8 ++-
- libcruft/getpagesize.c     |   28 ++++-----
- libcruft/mkstemp.c         |    1 +
- libcruft/sysconf.c         |   17 ++++--
- libm/ceil.c                |   92 +++++++++++++++++++++++++++++
- libm/gamma.c               |   26 ++++----
- librpc/clnt_raw.c          |   11 ++-
- librpc/clnt_udp.c          |    2 +-
- libugly/strftime.c         |    1 +
- libugly/strptime.c         |    5 +-
- mips/start.S               |    9 +++
- parisc/start.S             |   10 +++
- ppc/start.S                |    9 +++
- ppc64/start.S              |    9 +++
- s390/start.S               |   11 ++++
- s390x/start.S              |   11 ++++
- sparc/shmat.c              |    8 +--
- sparc/start.S              |   11 ++++
- sparc64/start.S            |   11 ++++
- syscalls.s/environ.S       |   16 +++++
- syscalls.s/fadvise64.S     |    9 +--
- test/.gitignore            |   85 ++++++++++++++++++++++++++
- test/Makefile              |   10 ++--
- test/adjtime.c             |   18 +++++-
- test/asprintf.c            |    2 +-
- test/atexit.c              |    2 +-
- test/bsearch.c             |    2 +-
- test/byteswap.c            |    8 +-
- test/cycles.c              |    5 +-
- test/dirent/.gitignore     |    2 +
- test/ftruncate.c           |   54 +++++++++++++++++
- test/getmntent.c           |    6 +--
- test/getservbyname.c       |    1 +
- test/if_nameindex.c        |    4 +
- test/malloc-debugger.c     |    2 +-
- test/math.c                |   29 +++++++++
- test/mktime.c              |    6 +-
- test/mmap_test.c           |    2 +-
- test/pipe.c                |    3 +
- test/printf.c              |   44 ++++++++++++--
- test/printftest.c          |    6 +-
- test/rand48.c              |   12 ++--
- test/runtests.sh           |    2 +-
- test/sendfile.c            |    2 +-
- test/setjmp.c              |  106 +++++++++++++++++++++++++++++++++
- test/sigsetjmp.c           |  140 ++++++++++++++++++++++++++++++++++++++++++++
- test/speed.c               |    4 +-
- test/stdio/.gitignore      |   14 +++++
- test/stdio/tstscanf.c      |    4 +-
- test/stdlib/.gitignore     |   13 ++++
- test/stdlib/testsort.c     |    2 +
- test/stdlib/tst-calloc.c   |    2 +
- test/stdlib/tst-malloc.c   |    6 ++-
- test/stdlib/tst-strtod.c   |    4 +-
- test/string/.gitignore     |   16 +++++
- test/sysconf.c             |   80 +++++++++++++++++++++++++
- test/sysenter.c            |    6 +-
- test/time/.gitignore       |    4 +
- test/time/tst-strftime.c   |    6 +-
- test/time/tst-strptime.c   |   23 ++++++-
- test/waitpid.c             |    2 +-
- x86_64/__time.S            |   11 ++++
- x86_64/start.S             |   16 +++++
- x86_64/time.S              |   12 +----
- 108 files changed, 1538 insertions(+), 466 deletions(-)
-
 diff --git a/.gitignore b/.gitignore
 new file mode 100644
 index 0000000..0a72698
@@ -116,9 +6,18 @@ index 0000000..0a72698
 @@ -0,0 +1 @@
 +/.cvsps
 diff --git a/Makefile b/Makefile
-index 143113b..a4f0c0c 100644
+index c06adf3..d0aa174 100644
 --- a/Makefile
 +++ b/Makefile
+@@ -8,7 +8,7 @@ LIBDIR=${prefix}/lib
+ BINDIR=${prefix}/bin
+ MAN1DIR=${prefix}/man/man1
+ 
+-MYARCH:=$(shell uname -m | sed -e 's/i[4-9]86/i386/' -e 's/armv[3-6]t\?e\?[lb]/arm/')
++MYARCH:=$(shell uname -m | sed -e 's/i[4-9]86/i386/' -e 's/armv[3-7]t\?[eh]\?[lb]/arm/')
+ 
+ # This extra-ugly cruft is here so make will not run uname and sed each
+ # time it looks at $(OBJDIR).  This alone sped up running make when
 @@ -88,7 +88,7 @@ ILIBDIR=$(LIBDIR)-$(ARCH)
  
  HOME=$(shell pwd)
@@ -145,7 +44,15 @@ index 143113b..a4f0c0c 100644
  include $(ARCH)/Makefile.add
  
  LIBMATHOBJ=$(patsubst %,$(OBJDIR)/%,$(LIBMATH))
-@@ -150,34 +153,36 @@ PWD=$(shell pwd)
+@@ -141,6 +144,7 @@ CFLAGS = -g
+ COMMENT = :
+ endif
+ CFLAGS += -W -Wall -Wextra -Wchar-subscripts -Wmissing-prototypes -Wmissing-declarations -Wno-switch -Wno-unused -Wredundant-decls
++XCFLAGS = -Wa,--noexecstack
+ 
+ PWD=$(shell pwd)
+ 
+@@ -150,34 +154,36 @@ PWD=$(shell pwd)
  # added real dynamic dietlibc.so
  PICODIR = pic-$(ARCH)
  
@@ -154,7 +61,7 @@ index 143113b..a4f0c0c 100644
 -
  % :: %,v
  
--$(OBJDIR)/%.o: $(OBJDIR)
+-$(OBJDIR)/%: $(OBJDIR)
 +%/.dirstamp:
 +	mkdir $*
 +	@touch $@
@@ -171,41 +78,46 @@ index 143113b..a4f0c0c 100644
 +	$(COMMENT) -$(STRIP) -x -R .comment -R .note $@
  else
 -$(OBJDIR)/pstart.o: start.S
+-	$(CROSS)$(CC) $(INC) $(CFLAGS) -DPROFILING -c $< -o $@
 +$(OBJDIR)/pstart.o: start.S $(OBJDIR)/.dirstamp
- 	$(CROSS)$(CC) $(INC) $(CFLAGS) -DPROFILING -c $< -o $@
++	$(CROSS)$(CC) $(INC) $(CFLAGS) $(XCFLAGS) -DPROFILING -c $< -o $@
++
++$(OBJDIR)/%.o: %.S $(ARCH)/syscalls.h $(OBJDIR)/.dirstamp
++	$(CROSS)$(CC) $(INC) $(CFLAGS) $(XCFLAGS) -c $< -o $@
  
 -$(OBJDIR)/%.o: %.S $(ARCH)/syscalls.h
-+$(OBJDIR)/%.o: %.S $(ARCH)/syscalls.h $(OBJDIR)/.dirstamp
- 	$(CROSS)$(CC) $(INC) $(CFLAGS) -c $< -o $@
- 
--$(OBJDIR)/pthread_%.o: libpthread/pthread_%.c
+-	$(CROSS)$(CC) $(INC) $(CFLAGS) -c $< -o $@
 +$(OBJDIR)/pthread_%.o: libpthread/pthread_%.c $(OBJDIR)/.dirstamp
- 	$(CROSS)$(CC) $(INC) $(CFLAGS) -c $< -o $@
--	$(COMMENT) -$(CROSS)strip -x -R .comment -R .note $@
++	$(CROSS)$(CC) $(INC) $(CFLAGS) $(XCFLAGS) -c $< -o $@
 +	$(COMMENT) -$(STRIP) -x -R .comment -R .note $@
 +$(OBJDIR)/stack_smash_handler2.o:	XCFLAGS:=-fno-omit-frame-pointer
  
--$(OBJDIR)/%.o: %.c
--	$(CROSS)$(CC) $(INC) $(CFLAGS) -c $< -o $@ -D__dietlibc__
+-$(OBJDIR)/pthread_%.o: libpthread/pthread_%.c
+-	$(CROSS)$(CC) $(INC) $(CFLAGS) -c $< -o $@
 -	$(COMMENT) -$(CROSS)strip -x -R .comment -R .note $@
 +$(OBJDIR)/%.o: %.c $(OBJDIR)/.dirstamp
 +	$(CROSS)$(CC) $(INC) $(CFLAGS) $(XCFLAGS) -c $< -o $@ -D__dietlibc__
 +	$(COMMENT) -$(STRIP) -x -R .comment -R .note $@
-+
+ 
+-$(OBJDIR)/%.o: %.c
+-	$(CROSS)$(CC) $(INC) $(CFLAGS) -c $< -o $@ -D__dietlibc__
+-	$(COMMENT) -$(CROSS)strip -x -R .comment -R .note $@
 +$(addprefix $(OBJDIR)/,$(NO_STACK_PROTECTOR)):	XCFLAGS+=-fno-stack-protector
  endif
  
  ifeq ($(shell $(CC) -v 2>&1 | grep "gcc version"),gcc version 4.0.0)
-@@ -190,7 +195,7 @@ endif
+@@ -190,8 +196,8 @@ endif
  
  CC+=-D__dietlibc__
  
 -$(OBJDIR)/crypt.o: libcrypt/crypt.c
+-	$(CROSS)$(CC) $(INC) $(SAFER_CFLAGS) -c $< -o $@
 +$(OBJDIR)/crypt.o: libcrypt/crypt.c $(OBJDIR)/.dirstamp
- 	$(CROSS)$(CC) $(INC) $(SAFER_CFLAGS) -c $< -o $@
++	$(CROSS)$(CC) $(INC) $(SAFER_CFLAGS) $(XCFLAGS) -c $< -o $@
  
  DIETLIBC_OBJ = $(OBJDIR)/unified.o \
-@@ -205,7 +210,7 @@ $(OBJDIR)/dietlibc.a: $(DIETLIBC_OBJ) $(OBJDIR)/start.o
+ $(SYSCALLOBJ) $(LIBOBJ) $(LIBSTDIOOBJ) $(LIBUGLYOBJ) \
+@@ -205,7 +211,7 @@ $(OBJDIR)/dietlibc.a: $(DIETLIBC_OBJ) $(OBJDIR)/start.o
  $(OBJDIR)/librpc.a: $(LIBRPCOBJ)
  	$(CROSS)ar cru $@ $(LIBRPCOBJ)
  
@@ -214,7 +126,7 @@ index 143113b..a4f0c0c 100644
  	touch dummy.c
  	$(CROSS)$(CC) -c dummy.c
  	$(CROSS)ar cru $@ dummy.o
-@@ -237,28 +242,28 @@ dyn: dyn_lib
+@@ -237,28 +243,28 @@ dyn: dyn_lib
  $(OBJDIR)/libdl.a: $(LIBDLOBJ)
  	$(CROSS)ar cru $@ $(LIBDLOBJ)
  
@@ -225,34 +137,39 @@ index 143113b..a4f0c0c 100644
  	$(PICODIR)/libm.so $(PICODIR)/diet-dyn $(PICODIR)/diet-dyn-i
  
 -$(PICODIR)/%.o: %.S $(ARCH)/syscalls.h
+-	$(CROSS)$(CC) $(INC) $(CFLAGS) -fPIC -D__DYN_LIB -c $< -o $@
 +$(PICODIR)/%.o: %.S $(ARCH)/syscalls.h $(PICODIR)/.dirstamp
- 	$(CROSS)$(CC) $(INC) $(CFLAGS) -fPIC -D__DYN_LIB -c $< -o $@
++	$(CROSS)$(CC) $(INC) $(CFLAGS) $(XCFLAGS) -fPIC -D__DYN_LIB -c $< -o $@
  
 -$(PICODIR)/pthread_%.o: libpthread/pthread_%.c
-+$(PICODIR)/pthread_%.o: libpthread/pthread_%.c $(PICODIR)/.dirstamp
- 	$(CROSS)$(CC) $(INC) $(CFLAGS) -fPIC -D__DYN_LIB -c $< -o $@
+-	$(CROSS)$(CC) $(INC) $(CFLAGS) -fPIC -D__DYN_LIB -c $< -o $@
 -	$(COMMENT) $(CROSS)strip -x -R .comment -R .note $@
++$(PICODIR)/pthread_%.o: libpthread/pthread_%.c $(PICODIR)/.dirstamp
++	$(CROSS)$(CC) $(INC) $(CFLAGS) $(XCFLAGS) -fPIC -D__DYN_LIB -c $< -o $@
 +	$(COMMENT) $(STRIP) -x -R .comment -R .note $@
  
 -$(PICODIR)/%.o: %.c
-+$(PICODIR)/%.o: %.c $(PICODIR)/.dirstamp
- 	$(CROSS)$(CC) $(INC) $(CFLAGS) -fPIC -D__DYN_LIB -c $< -o $@
+-	$(CROSS)$(CC) $(INC) $(CFLAGS) -fPIC -D__DYN_LIB -c $< -o $@
 -	$(COMMENT) $(CROSS)strip -x -R .comment -R .note $@
++$(PICODIR)/%.o: %.c $(PICODIR)/.dirstamp
++	$(CROSS)$(CC) $(INC) $(CFLAGS) $(XCFLAGS) -fPIC -D__DYN_LIB -c $< -o $@
 +	$(COMMENT) $(STRIP) -x -R .comment -R .note $@
  
 -$(PICODIR)/dstart.o: start.S
+-	$(CROSS)$(CC) $(INC) $(CFLAGS) -fPIC -D__DYN_LIB -c $< -o $@
 +$(PICODIR)/dstart.o: start.S $(PICODIR)/.dirstamp
- 	$(CROSS)$(CC) $(INC) $(CFLAGS) -fPIC -D__DYN_LIB -c $< -o $@
++	$(CROSS)$(CC) $(INC) $(CFLAGS) $(XCFLAGS) -fPIC -D__DYN_LIB -c $< -o $@
  
 -$(PICODIR)/dyn_so_start.o: dyn_start.c
-+$(PICODIR)/dyn_so_start.o: dyn_start.c $(PICODIR)/.dirstamp
- 	$(CROSS)$(CC) $(INC) $(CFLAGS) -fPIC -D__DYN_LIB -D__DYN_LIB_SHARED -c $< -o $@
+-	$(CROSS)$(CC) $(INC) $(CFLAGS) -fPIC -D__DYN_LIB -D__DYN_LIB_SHARED -c $< -o $@
 -	$(COMMENT) $(CROSS)strip -x -R .comment -R .note $@
++$(PICODIR)/dyn_so_start.o: dyn_start.c $(PICODIR)/.dirstamp
++	$(CROSS)$(CC) $(INC) $(CFLAGS) $(XCFLAGS) -fPIC -D__DYN_LIB -D__DYN_LIB_SHARED -c $< -o $@
 +	$(COMMENT) $(STRIP) -x -R .comment -R .note $@
  
  DYN_LIBC_PIC = $(LIBOBJ) $(LIBSTDIOOBJ) $(LIBUGLYOBJ) \
  $(LIBCRUFTOBJ) $(LIBCRYPTOBJ) $(LIBSHELLOBJ) $(LIBREGEXOBJ)
-@@ -274,13 +279,13 @@ DYN_LIBCOMPAT_OBJS = $(patsubst $(OBJDIR)/%.o,$(PICODIR)/%.o,$(LIBCOMPATOBJ))
+@@ -274,13 +280,13 @@ DYN_LIBCOMPAT_OBJS = $(patsubst $(OBJDIR)/%.o,$(PICODIR)/%.o,$(LIBCOMPATOBJ))
  
  DYN_LIBMATH_OBJS = $(patsubst $(OBJDIR)/%.o,$(PICODIR)/%.o,$(LIBMATHOBJ))
  
@@ -268,7 +185,7 @@ index 143113b..a4f0c0c 100644
  	$(LD_UNSET) $(CROSS)$(CC) -D__OD_CLEAN_ROOM -DNODIETREF -fPIC -nostdlib -shared -Bsymbolic -Wl,-Bsymbolic \
  		-o $@ $(SAFE_CFLAGS) $(INC) libdl/_dl_main.c -Wl,-soname=libdl.so
  
-@@ -310,19 +315,19 @@ CURNAME=$(notdir $(shell pwd))
+@@ -310,19 +316,19 @@ CURNAME=$(notdir $(shell pwd))
  
  $(OBJDIR)/diet: $(OBJDIR)/start.o $(OBJDIR)/dyn_start.o diet.c $(OBJDIR)/dietlibc.a $(OBJDIR)/dyn_stop.o
  	$(CROSS)$(CC) -isystem include $(CFLAGS) -nostdlib -o $@ $^ -DDIETHOME=\"$(HOME)\" -DVERSION=\"$(VERSION)\" -lgcc
@@ -292,7 +209,7 @@ index 143113b..a4f0c0c 100644
  
  $(OBJDIR)/djb: $(OBJDIR)/compile $(OBJDIR)/load
  
-@@ -335,7 +340,7 @@ $(OBJDIR)/load:
+@@ -335,7 +341,7 @@ $(OBJDIR)/load:
  	chmod 755 $@
  
  clean:
@@ -301,15 +218,25 @@ index 143113b..a4f0c0c 100644
  	rm -rf bin-* pic-*
  	$(MAKE) -C examples clean
  	$(MAKE) -C dynlinker clean
-@@ -531,3 +536,8 @@ $(OBJDIR)/stackgap.o: dietfeatures.h
+@@ -531,11 +537,12 @@ $(LIBPTHREAD_OBJS): include/pthread.h
+ # WANT_LARGEFILE_BACKCOMPAT
+ $(OBJDIR)/fcntl64.o: dietfeatures.h
  
+-# WANT_SSP
+-# This facepalm brought to you by: Ubuntu!
+-$(OBJDIR)/stackgap.o: lib/stackgap.c dietfeatures.h
+-	$(CROSS)$(CC) $(INC) $(CFLAGS) -c lib/stackgap.c -o $@ -D__dietlibc__ -fno-stack-protector
+-	$(COMMENT) -$(CROSS)strip -x -R .comment -R .note $@
+-
  # WANT_MALLOC_ZERO
  $(OBJDIR)/strndup.o: dietfeatures.h
 +
 +
 +GIT_CVSIMPORT=git cvsimport
++CVS_EXTRA_bigo.ensc.de=;proxy=www-cache;proxyport=3128
++CVS_EXTRA=$(CVS_EXTRA_$(shell hostname -d))
 +cvsimport:
-+	$(GIT_CVSIMPORT) -k -p '--cvs-direct' -d :pserver:cvs@cvs.fefe.de:/cvs dietlibc
++	$(GIT_CVSIMPORT) -k -p '--cvs-direct' -d ':pserver$(CVS_EXTRA):cvs@cvs.fefe.de:/cvs' dietlibc
 diff --git a/alpha/start.S b/alpha/start.S
 index 7e7cf9b..b13c9c9 100644
 --- a/alpha/start.S
@@ -398,10 +325,10 @@ index 7218d13..a4e53aa 100644
 +.size __guard, . - __guard
 +.size __stack_chk_guard, . - __stack_chk_guard
 diff --git a/arm/__longjmp.S b/arm/__longjmp.S
-index 31307bd..ba03146 100644
+index 31307bd..095093e 100644
 --- a/arm/__longjmp.S
 +++ b/arm/__longjmp.S
-@@ -1,11 +1,14 @@
+@@ -1,11 +1,24 @@
 -.text
 -.global __longjmp
 -.type __longjmp,function
@@ -412,14 +339,26 @@ index 31307bd..ba03146 100644
  	mov	ip, r0
  	movs	r0, r1
  	moveq	r0, #1
- #ifndef	__SOFTFP__
+-#ifndef	__SOFTFP__
 -	lfm	f4, 4, [ip], #48
-+	lfm	f4, 4, [ip, #10*4]
-+#endif
++
++#ifndef __SOFTFP__
++# if __ARM_ARCH__ == 7
++	vldm	ip!, {d0-d15}
++#   ifdef __ARM_NEON__
++	vldm	ip!, {d16-d31}
++#   endif
++# else
++	lfm	f4, 4, [ip]!
++# endif
+ #endif
+-	ldmia   ip, {r4-r11, sp, pc}
++
 +#ifdef __IWMMXT__
 +#  warning "sigjmp will not restore iwmmxt coprocessor registers"
- #endif
- 	ldmia   ip, {r4-r11, sp, pc}
++#endif
++
++	ldmia   ip!, {r4-r11, sp, pc}
 +FUNC_END	__longjmp
 diff --git a/arm/__testandset.S b/arm/__testandset.S
 index d9c5764..3b62c51 100644
@@ -447,10 +386,10 @@ index d9c5764..3b62c51 100644
 +FUNC_END	__testandset
 diff --git a/arm/arm-features.h b/arm/arm-features.h
 new file mode 100644
-index 0000000..cf330eb
+index 0000000..fa5d045
 --- /dev/null
 +++ b/arm/arm-features.h
-@@ -0,0 +1,103 @@
+@@ -0,0 +1,110 @@
 +/* --*- asm -*-- */
 +
 +#ifndef H_DIETLIBC_ARM_FEATURES_H
@@ -492,7 +431,14 @@ index 0000000..cf330eb
 +#error Unable to determine architecture.
 +#endif
 +
++#define DIET_JMPBUFSZ_REGS_REGULAR	10*32/8	/* r4-r11, sp, pc */
++#define DIET_JMPBUFSZ_REGS_FPv4		16*64/8 /* d0-d15 */
 +
++#if !defined(__SOFTFP__) || defined(__IWMMXT__)
++#  define DIET_HAVE_COPROC_REGS	1
++#else
++#  undef  DIET_HAVE_COPROC_REGS
++#endif
 +
 +#ifdef __ASSEMBLER__
 +
@@ -619,7 +565,7 @@ index 4a4b2f4..b2ef450 100644
  
  #endif
 diff --git a/arm/dyn_syscalls.S b/arm/dyn_syscalls.S
-index a4baf28..a8fe803 100644
+index a4baf28..e9b7ddd 100644
 --- a/arm/dyn_syscalls.S
 +++ b/arm/dyn_syscalls.S
 @@ -8,11 +8,15 @@
@@ -652,7 +598,15 @@ index a4baf28..a8fe803 100644
  
  /* ok now include all syscalls.s (*.S) and sysdep *.S */
  #include "mmap.S"
-@@ -280,9 +286,11 @@ __unified_syscall:
+@@ -104,7 +110,6 @@ __unified_syscall:
+ #include "../syscalls.s/n_sigprocmask.S"
+ #include "../syscalls.s/n_sigsuspend.S"
+ #include "../syscalls.s/nanosleep.S"
+-#include "../syscalls.s/nice.S"
+ #include "../syscalls.s/open.S"
+ #include "../syscalls.s/pause.S"
+ #include "../syscalls.s/personality.S"
+@@ -280,9 +285,11 @@ __unified_syscall:
  #include "../syscalls.s/fgetxattr.S"
  
  /* other asm-files w.o. changes ... */
@@ -695,7 +649,7 @@ index a397e92..2e25adf 100644
 -
 +FUNC_END	mcount
 diff --git a/arm/md5asm.S b/arm/md5asm.S
-index 370b503..14ba4b9 100644
+index 370b503..1498899 100644
 --- a/arm/md5asm.S
 +++ b/arm/md5asm.S
 @@ -50,45 +50,35 @@
@@ -728,14 +682,19 @@ index 370b503..14ba4b9 100644
      stmia   r0, { r1 - r3, r12 }            @ store into MD5 context->state[0..3]
      mov     r1, #0
      str     r1, [r0, #0x10]                 @ initial count[0] = 0
-     str     r1, [r0, #0x14]                 @ initial count[1] = 0
+-    str     r1, [r0, #0x14]                 @ initial count[1] = 0
 -    mov     pc, lr                          @ return
+-
+-1: .word    0x67452301                      @ initial MD5 context->state[0]
+-   .word    0xefcdab89                      @ initial MD5 context->state[1]
+-   .word    0x98badcfe                      @ initial MD5 context->state[2]
++    str     r1, [r0, #0x14]                 @ initial count[1] = 0
 +    RET
- 
++
 +   .align   3
- 1: .word    0x67452301                      @ initial MD5 context->state[0]
-    .word    0xefcdab89                      @ initial MD5 context->state[1]
-    .word    0x98badcfe                      @ initial MD5 context->state[2]
++1: .word    0x67452301                      @ initial MD5 context->state[0]
++   .word    0xefcdab89                      @ initial MD5 context->state[1]
++   .word    0x98badcfe                      @ initial MD5 context->state[2]
     .word    0x10325476                      @ initial MD5 context->state[3]
 -
 +FUNC_END	MD5Init
@@ -822,10 +781,10 @@ index d3ea131..0000000
 -
 -#endif
 diff --git a/arm/setjmp.S b/arm/setjmp.S
-index 6b850d4..e7503b2 100644
+index 6b850d4..e56e615 100644
 --- a/arm/setjmp.S
 +++ b/arm/setjmp.S
-@@ -1,17 +1,20 @@
+@@ -1,17 +1,40 @@
 -.text
 -.weak setjmp
 -setjmp:
@@ -840,23 +799,43 @@ index 6b850d4..e7503b2 100644
 -__sigsetjmp:
 -.weak sigsetjmp
 -sigsetjmp:
+-#ifndef	__SOFTFP__
+-	sfm	f4, 4, [r0], #48
 +FUNC_END	__setjmp
 +FUNC_END	setjmp
 +
 +FUNC_START_WEAK	sigsetjmp
 +FUNC_START	__sigsetjmp
-+	stmia	r0, {r4-r11, sp, lr}
- #ifndef	__SOFTFP__
--	sfm	f4, 4, [r0], #48
-+	sfm	f4, 4, [r0, #10*4]
++
++#ifdef DIET_HAVE_COPROC_REGS
++	/* we have to work on a copy of 'r0' (jmpbuf *) */
++	mov	ip, r0
+ #endif
++
++#ifndef __SOFTFP__
++# if __ARM_ARCH__ >= 7
++	vstmia	ip!, {d0-d15}
++#   ifdef __ARM_NEON__
++	vstmia	ip!, {d16-d31}
++#   endif
++# else
++	sfm	f4, 4, [ip]!
++# endif
 +#endif
++
 +#ifdef __IWMMXT__
 +#  warning "setjmp will not save iwmmxt coprocessor registers"
- #endif
--	stmia	r0, {r4-r11, sp, lr}
++#endif
++
++#ifndef DIET_HAVE_COPROC_REGS
+ 	stmia	r0, {r4-r11, sp, lr}
 -	sub	r0, r0, #48
- 	b	__sigjmp_save
--
+-	b	__sigjmp_save
++#else
++	stmia	ip!, {r4-r11, sp, lr}
++#endif
+ 
++	b	__sigjmp_save
 +FUNC_END	__sigsetjmp
 +FUNC_END	sigsetjmp
 diff --git a/arm/start.S b/arm/start.S
@@ -1307,10 +1286,10 @@ index 0000000..de8c717
 +	__attribute__((__visibility__("hidden"),__const__)) __pure;
 +#endif
 diff --git a/dietfeatures.h b/dietfeatures.h
-index dcdda39..0d44425 100644
+index c05e0ad..23ff5ca 100644
 --- a/dietfeatures.h
 +++ b/dietfeatures.h
-@@ -138,6 +138,16 @@
+@@ -142,6 +142,16 @@
  #define WANT_SSP
  #endif
  
@@ -1327,7 +1306,7 @@ index dcdda39..0d44425 100644
  
  
  /* stop uncommenting here ;-) */
-@@ -169,4 +179,8 @@
+@@ -179,4 +189,8 @@
  #endif
  #endif
  
@@ -1393,6 +1372,18 @@ index ca278d7..da36845 100644
  .global fini_entry
  fini_entry:
  	.long 0
+diff --git a/i386/dyn_syscalls.S b/i386/dyn_syscalls.S
+index e41f3c1..99eb739 100644
+--- a/i386/dyn_syscalls.S
++++ b/i386/dyn_syscalls.S
+@@ -191,7 +191,6 @@ __unified_syscall:
+ #include "../syscalls.s/n_sigpending.S"
+ #include "../syscalls.s/n_sigprocmask.S"
+ #include "../syscalls.s/n_sigsuspend.S"
+-#include "../syscalls.s/nice.S"
+ #include "../syscalls.s/pause.S"
+ #include "../syscalls.s/personality.S"
+ #include "../syscalls.s/query_module.S"
 diff --git a/i386/start.S b/i386/start.S
 index 361af3d..b681d05 100644
 --- a/i386/start.S
@@ -1417,6 +1408,59 @@ index 361af3d..b681d05 100644
  /* The ELF auxvec follows the environment, consists of key/value pairs.
     We are looking for key 32, which stands for the vsyscall page */
  1:
+diff --git a/i386/syscalls.h b/i386/syscalls.h
+index c4c9862..94f9be5 100644
+--- a/i386/syscalls.h
++++ b/i386/syscalls.h
+@@ -368,7 +368,6 @@ sym: \
+ .Lend##sym: ; \
+ .size sym,.Lend##sym-sym
+ 
+-#ifndef __PIC__
+ #define __socketcall(name,NAME) \
+ .text; \
+ .type name,@function; \
+@@ -381,6 +380,3 @@ __libc_##name: ; \
+ 	jmp socketcall; \
+ .Lend##name:; \
+ .size name,.Lend##name-name
+-#else
+-#define __socketcall(name,NAME)
+-#endif
+diff --git a/ia64/Makefile.add b/ia64/Makefile.add
+index ae02eb6..83fcb0f 100644
+--- a/ia64/Makefile.add
++++ b/ia64/Makefile.add
+@@ -1,2 +1,2 @@
+ VPATH:=ia64:syscalls.s:$(VPATH)
+-LIBOBJ+=$(OBJDIR)/__time.o $(OBJDIR)/__waitpid.o $(OBJDIR)/__nice.o $(OBJDIR)/__alarm.o $(OBJDIR)/__CAS.o
++LIBOBJ+=$(OBJDIR)/__time.o $(OBJDIR)/__waitpid.o $(OBJDIR)/__alarm.o $(OBJDIR)/__CAS.o $(OBJDIR)/__pause.o
+diff --git a/ia64/__pause.c b/ia64/__pause.c
+new file mode 100644
+index 0000000..bb3a23a
+--- /dev/null
++++ b/ia64/__pause.c
+@@ -0,0 +1,10 @@
++#include <unistd.h>
++#include <signal.h>
++
++int pause(void)
++{
++  sigset_t set;
++  sigemptyset(&set);
++  sigprocmask(SIG_BLOCK, NULL, &set);
++  return sigsuspend(&set);
++}
+diff --git a/ia64/clone.S b/ia64/clone.S
+index 0f87970..c152483 100644
+--- a/ia64/clone.S
++++ b/ia64/clone.S
+@@ -43,4 +43,5 @@ __clone:
+ 	br.call.dptk.few b0=__error_unified_syscall
+ 	br.ret.sptk.few b0
+ .endp __clone
++.endp __clone2
+ .size __clone, . - __clone
 diff --git a/ia64/start.S b/ia64/start.S
 index 50fd015..c917721 100644
 --- a/ia64/start.S
@@ -1438,6 +1482,61 @@ index 50fd015..c917721 100644
  #ifdef WANT_DYNAMIC
  /* FIXME: dl_init parameter ??? */
  	br.call.sptk.few rp = _dyn_start
+diff --git a/ia64/unified.S b/ia64/unified.S
+index 548e050..84ca7e8 100644
+--- a/ia64/unified.S
++++ b/ia64/unified.S
+@@ -16,9 +16,7 @@
+ .text
+ 
+ .globl __unified_syscall
+-.proc  __unified_syscall
+ .globl __error_unified_syscall
+-.proc  __error_unified_syscall
+ .globl _exit
+ .proc  _exit
+ 
+@@ -27,11 +25,18 @@ _exit:
+ .endp _exit
+ .size _exit, . - _exit
+ 
++.proc  __unified_syscall
++
+ __unified_syscall:
+ 	break.i 0x100000
+ 	movl r2=errno
+ 	cmp.eq p6,p0=-1,r10
+ 	;;
++.endp __unified_syscall
++.size __unified_syscall, . - __unified_syscall
++
++.proc  __error_unified_syscall
++
+ __error_unified_syscall:
+ (p6)    st4 [r2]=r8
+ (p6)    mov r8=-1
+@@ -40,5 +45,5 @@ __error_unified_syscall:
+ 
+ 	br.ret.sptk.few rp
+ 
+-.size __unified_syscall, __error_unified_syscall - __unified_syscall
++.endp __error_unified_syscall
+ .size __error_unified_syscall, . - __error_unified_syscall
+diff --git a/include/fcntl.h b/include/fcntl.h
+index e4e668b..d814619 100644
+--- a/include/fcntl.h
++++ b/include/fcntl.h
+@@ -614,8 +614,10 @@ struct flock64
+ extern int fcntl (int __fd, int __cmd, ...) __THROW;
+ #ifndef __NO_STAT64
+ extern int fcntl64 (int __fd, int __cmd, ...) __THROW;
++extern int fstatat64(int dirfd, const char *pathname, struct stat *buf, int flags) __THROW;
+ #if defined _FILE_OFFSET_BITS && _FILE_OFFSET_BITS == 64
+ #define fcntl fcntl64
++#define fstatat fstatat64
+ #endif
+ #endif
+ 
 diff --git a/include/paths.h b/include/paths.h
 index 553b4fa..9bf216f 100644
 --- a/include/paths.h
@@ -1450,6 +1549,19 @@ index 553b4fa..9bf216f 100644
 +#define _PATH_DEFPATH "/bin:/usr/bin"
  
  #define _PATH_DEVNULL "/dev/null"
+ 
+diff --git a/include/setjmp.h b/include/setjmp.h
+index 10b0a07..7fb0303 100644
+--- a/include/setjmp.h
++++ b/include/setjmp.h
+@@ -166,7 +166,7 @@ typedef int __jmp_buf[3];
+ #ifdef __arm__
+ #define __JMP_BUF_SP            8
+ #ifndef __ASSEMBLER__
+-typedef int __jmp_buf[24];
++typedef int __jmp_buf[10 + 16*2 + 16*2];
+ #endif
+ #endif
  
 diff --git a/include/stdlib.h b/include/stdlib.h
 index 4976f86..1dd10ff 100644
@@ -1498,6 +1610,19 @@ index 9b2d04d..70bb17e 100644
  extern int shmget(key_t key, int size, int shmflg) __THROW;
  extern void *shmat(int shmid, const void *shmaddr, int shmflg) __THROW;
  extern int shmdt (const void *shmaddr) __THROW;
+diff --git a/include/unistd.h b/include/unistd.h
+index c482077..09c55e5 100644
+--- a/include/unistd.h
++++ b/include/unistd.h
+@@ -39,6 +39,8 @@ loff_t lseek64(int fildes, loff_t offset, int whence) __THROW;
+ #if defined _FILE_OFFSET_BITS && _FILE_OFFSET_BITS == 64
+ #define lseek(fildes,offset,whence) lseek64(fildes,offset,whence)
+ #endif
++#else
++#define lseek64(fildes,offset,whence) lseek(fildes,offset,whence)
+ #endif
+ 
+ int chdir(const char *path) __THROW;
 diff --git a/lib/__dtostr.c b/lib/__dtostr.c
 index 1d082e3..bc61200 100644
 --- a/lib/__dtostr.c
@@ -1547,10 +1672,13 @@ index 1d082e3..bc61200 100644
      } else {
 diff --git a/lib/__get_elf_aux_value.c b/lib/__get_elf_aux_value.c
 new file mode 100644
-index 0000000..8a2e3bc
+index 0000000..bc140c5
 --- /dev/null
 +++ b/lib/__get_elf_aux_value.c
-@@ -0,0 +1,14 @@
+@@ -0,0 +1,19 @@
++#include "dietfeatures.h"
++
++#ifdef WANT_ELFINFO
 +#include <stdlib.h>
 +#include "../dietelfinfo.h"
 +
@@ -1565,26 +1693,23 @@ index 0000000..8a2e3bc
 +
 +  return NULL;
 +}
++
++#endif
 diff --git a/lib/__nice.c b/lib/__nice.c
-index d751104..8e205c0 100644
+deleted file mode 100644
+index d751104..0000000
 --- a/lib/__nice.c
-+++ b/lib/__nice.c
-@@ -1,9 +1,13 @@
- #include "syscalls.h"
++++ /dev/null
+@@ -1,9 +0,0 @@
+-#include "syscalls.h"
 -#include <sys/time.h>
-+#include <errno.h>
- #include <sys/resource.h>
- 
- #ifndef __NR_nice
- int nice(int i) {
+-#include <sys/resource.h>
+-
+-#ifndef __NR_nice
+-int nice(int i) {
 -  return setpriority(PRIO_PROCESS,0,getpriority(PRIO_PROCESS,0)+i);
-+  if (setpriority(PRIO_PROCESS,0,getpriority(PRIO_PROCESS,0)+i) == -1) {
-+    errno=EPERM;
-+    return -1;
-+  }
-+  return getpriority(PRIO_PROCESS,0);
- }
- #endif
+-}
+-#endif
 diff --git a/lib/__utime.c b/lib/__utime.c
 index e013265..0e4d0df 100644
 --- a/lib/__utime.c
@@ -1740,6 +1865,25 @@ index 3aade81..21de234 100644
 +  munmap (d, __DIET_PAGE_SIZE);
    return res;
  }
+diff --git a/lib/fdopendir.c b/lib/fdopendir.c
+index 2b76cbd..50ecfa7 100644
+--- a/lib/fdopendir.c
++++ b/lib/fdopendir.c
+@@ -1,4 +1,5 @@
+ #include "dietdirent.h"
++#include "dietpagesize.h"
+ #include <sys/mman.h>
+ #include <unistd.h>
+ #include <dirent.h>
+@@ -9,7 +10,7 @@ DIR*  fdopendir ( int fd ) {
+   DIR*  t  = NULL;
+ 
+   if ( fd >= 0 ) {
+-    t = (DIR *) mmap (NULL, PAGE_SIZE, PROT_READ | PROT_WRITE, 
++    t = (DIR *) mmap (NULL, __DIET_PAGE_SIZE, PROT_READ | PROT_WRITE,
+ 		MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+     if (t == MAP_FAILED)
+ lose:
 diff --git a/lib/mmap64.c b/lib/mmap64.c
 index 0ab29a6..5012394 100644
 --- a/lib/mmap64.c
@@ -1765,6 +1909,80 @@ index 0ab29a6..5012394 100644
  }
  
  void*mmap64(void*addr,size_t len,int prot,int flags,int fd,off64_t offset)
+diff --git a/lib/nice.c b/lib/nice.c
+index 3f826af..076bac7 100644
+--- a/lib/nice.c
++++ b/lib/nice.c
+@@ -1,17 +1,56 @@
+-#define _REENTRANT
++/*
++ * nice() for uClibc
++ *
++ * Copyright (C) 2000-2004 by Erik Andersen <andersen@codepoet.org>
++ * Copyright (C) 2005 by Manuel Novoa III <mjn3@codepoet.org>
++ *
++ * GNU Library General Public License (LGPL) version 2 or later.
++ */
++
+ #include <errno.h>
+-#include <unistd.h>
++#include <limits.h>
+ #include <sys/resource.h>
+ 
+-int nice(int incr) {
+-  int prio;
+-  int res;
+-  errno=0;
+-  prio = getpriority(PRIO_PROCESS,0) + incr;
+-  if (prio < PRIO_MIN) prio=PRIO_MIN;
+-  if (prio >= PRIO_MAX) prio=PRIO_MAX-1;
+-  if (setpriority (PRIO_PROCESS, 0, prio)==-1)
+-    return -1;
+-  else
+-    return getpriority(PRIO_PROCESS, 0);
++static inline int int_add_no_wrap(int a, int b)
++{
++	int	s;
++
++	if ((b > 0) && (a > (INT_MAX - b)))
++		s = INT_MAX;
++	else if ((b < 0) && (a < (INT_MIN - b)))
++		s = INT_MIN;
++	else
++		s = a + b;
++
++	return s;
++}
++
++static inline int __syscall_nice(int incr)
++{
++	int old_priority;
++	int old_errno;
++
++	old_errno = errno;
++	__set_errno(0);
++	old_priority = getpriority(PRIO_PROCESS, 0);
++	if ((old_priority == -1) && errno) {
++		return -1;
++	}
++	__set_errno(old_errno);
++
++	if (setpriority(PRIO_PROCESS, 0, int_add_no_wrap(old_priority, incr))) {
++		__set_errno(EPERM);	/* SUSv3 mandates EPERM for nice failure. */
++		return -1;
++	}
++
++	return 0;
++}
++
++int nice(int incr)
++{
++	if (__syscall_nice(incr)) {
++		return -1;
++	}
++
++	return getpriority(PRIO_PROCESS, 0);
+ }
 diff --git a/lib/opendir.c b/lib/opendir.c
 index 2530d1a..847685e 100644
 --- a/lib/opendir.c
@@ -1787,6 +2005,19 @@ index 2530d1a..847685e 100644
  		MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
      if (t == MAP_FAILED)
  lose:
+diff --git a/lib/qsort.c b/lib/qsort.c
+index 8c24b77..2523d5d 100644
+--- a/lib/qsort.c
++++ b/lib/qsort.c
+@@ -30,7 +30,7 @@ static void quicksort(char* base,size_t size,ssize_t l,ssize_t r,
+      data is already sorted.  Try to improve by exchanging it with a
+      random other pivot.
+    */
+-  exch(base,size,l+(random()%(r-l)),r);
++  exch(base,size,l+(rand()%(r-l)),r);
+ #elif defined MID
+   /*
+      We chose the rightmost element in the array to be sorted as pivot,
 diff --git a/lib/readdir.c b/lib/readdir.c
 index ed885a5..d80a406 100644
 --- a/lib/readdir.c
@@ -1832,10 +2063,10 @@ index 924f0a8..06d073b 100644
        if (errno==ENOSYS) {
  	trygetdents64=0;
 diff --git a/lib/stack_smash_handler2.c b/lib/stack_smash_handler2.c
-index 9e85099..83c0cef 100644
+index 9e85099..179d31b 100644
 --- a/lib/stack_smash_handler2.c
 +++ b/lib/stack_smash_handler2.c
-@@ -8,5 +8,16 @@ void __stack_chk_fail(void);
+@@ -8,5 +8,17 @@ void __stack_chk_fail(void);
   * diagnostics.  No more. :-( */
  void __stack_chk_fail(void) {
    __write2("smashed stack detected, program terminated.\n");
@@ -1849,12 +2080,13 @@ index 9e85099..83c0cef 100644
 +   */
 +  *(char volatile *)0 = 0;
 +  while (1) {
-+    asm("");
++#if defined(__GNUC__) && ((((__GNUC__) << 8) | (__GNUC_MINOR__)) >= 0x405)
 +    __builtin_unreachable();
++#endif
 +  }
  }
 diff --git a/lib/stackgap.c b/lib/stackgap.c
-index 6f1f5c4..1a3af01 100644
+index 122bc0d..35715ed 100644
 --- a/lib/stackgap.c
 +++ b/lib/stackgap.c
 @@ -16,6 +16,7 @@
@@ -1865,7 +2097,7 @@ index 6f1f5c4..1a3af01 100644
  
  #ifdef WANT_GNU_STARTUP_BLOAT
  char* program_invocation_name;
-@@ -48,11 +49,12 @@ void* __tdataptr;
+@@ -50,11 +51,12 @@ void* __tdataptr;
  
  static void findtlsdata(long* auxvec) {
  #if (__WORDSIZE == 64)
@@ -1880,7 +2112,7 @@ index 6f1f5c4..1a3af01 100644
    while (*auxvec) {
      if (auxvec[0]==3) {	/* AT_PHDR */
        x=(void*)auxvec[1];
-@@ -63,6 +65,18 @@ static void findtlsdata(long* auxvec) {
+@@ -65,6 +67,18 @@ static void findtlsdata(long* auxvec) {
      }
      auxvec+=2;
    } /* if we don't find the entry, the kernel let us down */
@@ -1899,15 +2131,15 @@ index 6f1f5c4..1a3af01 100644
    if (!x || !n) return;	/* a kernel this old does not support thread local storage anyway */
    for (i=0; i<n; ++i)
      if (x[i].p_type==PT_TLS) {
-@@ -123,6 +137,7 @@ void __setup_tls(tcbhead_t* mainthread) {
+@@ -125,6 +139,7 @@ void __setup_tls(tcbhead_t* mainthread) {
  }
  #endif
  
 +#ifndef WANT_ELFINFO
- static void* find_rand(long* x) {
+ static void* find_in_auxvec(long* x,long what) {
    while (*x) {
-     if (*x==25)
-@@ -131,20 +146,30 @@ static void* find_rand(long* x) {
+     if (*x==what)
+@@ -133,20 +148,30 @@ static void* find_in_auxvec(long* x,long what) {
    }
    return NULL;
  }
@@ -1915,8 +2147,8 @@ index 6f1f5c4..1a3af01 100644
  
  int stackgap(int argc,char* argv[],char* envp[]);
  int stackgap(int argc,char* argv[],char* envp[]) {
- #if defined(WANT_STACKGAP) || defined(WANT_SSP) || defined(WANT_TLS)
 -  long* auxvec=(long*)envp;
+ #if defined(WANT_STACKGAP) || defined(WANT_SSP) || defined(WANT_TLS)
    char* rand;
    char* tlsdata;
 +#ifndef WANT_ELFINFO
@@ -1930,7 +2162,7 @@ index 6f1f5c4..1a3af01 100644
  #if defined(WANT_STACKGAP) || defined(WANT_SSP)
 -  volatile char* gap;
 +#ifndef WANT_ELFINFO
-   rand=find_rand(auxvec);
+   rand=find_in_auxvec(auxvec,25);
 +#else
 +  {
 +    __diet_elf_addr_t const	*rand_addr = __get_elf_aux_value(25);
@@ -1940,7 +2172,21 @@ index 6f1f5c4..1a3af01 100644
    if (!rand) {
      char myrand[10];
      int fd=open("/dev/urandom",O_RDONLY);
-@@ -165,7 +190,11 @@ int stackgap(int argc,char* argv[],char* envp[]) {
+@@ -166,13 +191,25 @@ int stackgap(int argc,char* argv[],char* envp[]) {
+ #endif
+ #endif
+ 
++#ifndef WANT_ELFINFO
+   __vdso=find_in_auxvec(auxvec,33);	// AT_SYSINFO_EHDR -> vdso start address
++#else
++  {
++    __diet_elf_addr_t const	*vdso_addr = __get_elf_aux_value(33);
++    __vdso = vdso_addr ? (void *)*vdso_addr : NULL;
++  }
++#endif
++
+ #ifdef __x86_64__
+   if (!__vdso) __vdso=(char*)0xffffffffff600000;
  #endif
  
  #ifdef WANT_TLS
@@ -1952,11 +2198,47 @@ index 6f1f5c4..1a3af01 100644
    if (__unlikely(__tmemsize+sizeof(tcbhead_t)<sizeof(tcbhead_t)) ||
        __unlikely(__tmemsize>512*1024*1024) ||
        __unlikely(__tmemsize<__tdatasize))
+diff --git a/lib/tcsetattr.c b/lib/tcsetattr.c
+index 03fe8ad..15d6966 100644
+--- a/lib/tcsetattr.c
++++ b/lib/tcsetattr.c
+@@ -3,24 +3,8 @@
+ #include <errno.h>
+ #include "dietfeatures.h"
+ 
+-#if !defined(__powerpc__) && !defined(__sparc__) && !defined(__alpha__) && !defined(__hppa__)
+-#if TCSANOW==0 && TCSADRAIN==1 && TCSAFLUSH==2 && TCSETSW-TCSETS==1 && TCSETSF-TCSETS==2
+-#define shortcut
+-#endif
+-#endif
+-
+ int  tcsetattr ( int fildes, int optional_actions, struct termios* termios_p )
+ {
+-#ifdef shortcut
+-
+-    if ( (unsigned int)optional_actions < 3u )
+-        return ioctl ( fildes, TCSETS+optional_actions, termios_p );
+-
+-    errno = EINVAL;
+-    return -1;
+-
+-#else
+-
+     switch ( optional_actions ) {
+     case TCSANOW:
+         return ioctl ( fildes, TCSETS , termios_p );
+@@ -32,6 +16,4 @@ int  tcsetattr ( int fildes, int optional_actions, struct termios* termios_p )
+         errno = EINVAL;
+         return -1;
+     }
+-    
+-#endif    
+ }
 diff --git a/libcompat/syscall.S b/libcompat/syscall.S
-index c9f72bb..4188167 100644
+index c9f72bb..5743000 100644
 --- a/libcompat/syscall.S
 +++ b/libcompat/syscall.S
-@@ -130,6 +130,12 @@ syscall:
+@@ -130,6 +130,13 @@ syscall:
  	b    __unified_syscall
  
  #else
@@ -1968,6 +2250,7 @@ index c9f72bb..4188167 100644
 +#else
 +	.long		__syscall_2_not_implemented_for_this_arch
 +#endif
++	.section	.text
  #endif
  .size	syscall, . - syscall
 diff --git a/libcruft/getpagesize.c b/libcruft/getpagesize.c
@@ -2248,8 +2531,53 @@ index ae7f3d8..003edf5 100644
  			continue;
  		/* we now assume we have the proper reply */
  		break;
+diff --git a/libstdio/fflush.c b/libstdio/fflush.c
+index f197482..df453ec 100644
+--- a/libstdio/fflush.c
++++ b/libstdio/fflush.c
+@@ -17,7 +17,6 @@ int fflush_unlocked(FILE *stream) {
+   if (stream==0) {
+     int res;
+     FILE *f;
+-    __fflush_stdin();
+     __fflush_stdout();
+     __fflush_stderr();
+     for (res=0, f=__stdio_root; f; f=f->next)
+diff --git a/libstdio/fwrite.c b/libstdio/fwrite.c
+index 464abdd..9f4e8e5 100644
+--- a/libstdio/fwrite.c
++++ b/libstdio/fwrite.c
+@@ -49,7 +49,7 @@ notlinewise:
+     } else
+       done=0;
+     for (i=done; i<len; ++i)
+-      if (fputc_unlocked(((char*)ptr)[i],stream)) {
++      if (fputc_unlocked(((char*)ptr)[i],stream) == EOF) {
+ 	res=len-i;
+ 	goto abort;
+       }
+diff --git a/libugly/asctime_r.c b/libugly/asctime_r.c
+index 43c5e2c..9859f5f 100644
+--- a/libugly/asctime_r.c
++++ b/libugly/asctime_r.c
+@@ -9,7 +9,7 @@ static void num2str(char *c,int i) {
+ }
+ 
+ char *asctime_r(const struct tm *t, char *buf) {
+-  /* "Wed Jun 30 21:49:08 1993\n" */
++  /* "Wed Jun 30 21:49:08 1993\n\0" */
+   *(int*)buf=*(int*)(days+(t->tm_wday<<2));
+   *(int*)(buf+4)=*(int*)(months+(t->tm_mon<<2));
+   num2str(buf+8,t->tm_mday);
+@@ -25,5 +25,6 @@ char *asctime_r(const struct tm *t, char *buf) {
+   num2str(buf+20,(t->tm_year+1900)/100);
+   num2str(buf+22,(t->tm_year+1900)%100);
+   buf[24]='\n';
++  buf[25]='\0';
+   return buf;
+ }
 diff --git a/libugly/strftime.c b/libugly/strftime.c
-index 56ae082..cf16f37 100644
+index b6532aa..a501308 100644
 --- a/libugly/strftime.c
 +++ b/libugly/strftime.c
 @@ -55,6 +55,7 @@ again:
@@ -2298,8 +2626,35 @@ index 57144b3..3cf3433 100644
  	jalr	$25
  	la	$25, exit
  	move	$4,$2
+diff --git a/parisc/semctl.S b/parisc/semctl.S
+new file mode 100644
+index 0000000..e215ed9
+--- /dev/null
++++ b/parisc/semctl.S
+@@ -0,0 +1,3 @@
++#include "syscalls.h"
++
++syscall(semctl,semctl)
+diff --git a/parisc/semget.S b/parisc/semget.S
+new file mode 100644
+index 0000000..67f4885
+--- /dev/null
++++ b/parisc/semget.S
+@@ -0,0 +1,3 @@
++#include "syscalls.h"
++
++syscall(semget,semget)
+diff --git a/parisc/semop.S b/parisc/semop.S
+new file mode 100644
+index 0000000..81b6fc6
+--- /dev/null
++++ b/parisc/semop.S
+@@ -0,0 +1,3 @@
++#include "syscalls.h"
++
++syscall(semop,semop)
 diff --git a/parisc/start.S b/parisc/start.S
-index 69d9cce..894255c 100644
+index 69d9cce..871296e 100644
 --- a/parisc/start.S
 +++ b/parisc/start.S
 @@ -34,6 +34,16 @@ _start:
@@ -2310,7 +2665,7 @@ index 69d9cce..894255c 100644
 +#  warning "MAKE ME PARISC CODE!"
 +1:	add %r20, %r19, %r19		; envp += 4
 +	ldw -4(0,%r19), %r21		; load envp[-4] into %r21
-+	comibf =,0, 0,%21,1b		; compare %21 with 0 without nullification
++	comibf =,0, 0,%r21,1b		; compare %r21 with 0 without nullification
 +
 +	ldil LP%__elfinfo, %r19
 +	ldo RP%__elfinfo(%r19), %r19
@@ -2319,6 +2674,37 @@ index 69d9cce..894255c 100644
  	/* Expand the stack to store the 5th through 7th args */
  	ldo 64(%sp), %sp
  
+diff --git a/parisc/strcmp.S b/parisc/strcmp.S
+index 9dddd59..b954f48 100644
+--- a/parisc/strcmp.S
++++ b/parisc/strcmp.S
+@@ -1,6 +1,7 @@
+ .text
+ .globl strcmp
+-
++.weak strcoll
++strcoll:
+ strcmp:
+ 	.PROC
+ 	.CALLINFO
+diff --git a/powerpc/select.S b/powerpc/select.S
+new file mode 100644
+index 0000000..9e7066e
+--- /dev/null
++++ b/powerpc/select.S
+@@ -0,0 +1,3 @@
++#include "syscalls.h"
++
++syscall_weak(_newselect,select,__libc_select)
+diff --git a/powerpc64/select.S b/powerpc64/select.S
+new file mode 100644
+index 0000000..9e7066e
+--- /dev/null
++++ b/powerpc64/select.S
+@@ -0,0 +1,3 @@
++#include "syscalls.h"
++
++syscall_weak(_newselect,select,__libc_select)
 diff --git a/ppc/start.S b/ppc/start.S
 index 771f1ad..3b5cab1 100644
 --- a/ppc/start.S
@@ -2340,7 +2726,7 @@ index 771f1ad..3b5cab1 100644
  	mr	6,7
  	bl	_dyn_start
 diff --git a/ppc64/start.S b/ppc64/start.S
-index a9208ff..46b4bf0 100644
+index 3955d48..a9e9d6a 100644
 --- a/ppc64/start.S
 +++ b/ppc64/start.S
 @@ -58,6 +58,15 @@ _start:
@@ -2359,8 +2745,43 @@ index a9208ff..46b4bf0 100644
  #ifdef WANT_DYNAMIC
  /* #warning dynamic */
  	mr	6,7
+diff --git a/s390/setjmp.S b/s390/setjmp.S
+index 7522373..762f9e3 100644
+--- a/s390/setjmp.S
++++ b/s390/setjmp.S
+@@ -14,6 +14,7 @@ __setjmp:
+ 
+ .global _setjmp
+ .type	_setjmp,@function
++_setjmp:
+ 	lhi	%r3,0
+ .size	_setjmp,.-_setjmp
+ 
+@@ -26,15 +27,18 @@ __sigsetjmp:
+ 	std	%f6,48(%r2)
+ 
+ 	/* Make a tail call to __sigjmp_save; it takes the same args.  */
+-	basr	%r1,%r0
++	basr	%r1,0
+ #ifdef	PIC
+-.L0:	la	%r1,.L1-.L0(0,%r1)
++.L0:	al	%r1,.L1-.L0(0,%r1)
+ 	l	%r1,__sigjmp_save@GOT12(0,%r1)
++#else
++.L0:	l	%r1,.L1-.L0(0,%r1)
++#endif
+ 	br	%r1
++	.p2align 3
++#ifdef	PIC
+ .L1:	.long	_GLOBAL_OFFSET_TABLE_-.L0
+ #else
+-	l	%r1,.L1(0,%r1)
+-	br	%r1
+ .L1:	.long	__sigjmp_save
+ #endif
+ .size __sigsetjmp,.-__sigsetjmp;
 diff --git a/s390/start.S b/s390/start.S
-index c0f971f..585faf7 100644
+index c0f971f..c1a5a6f 100644
 --- a/s390/start.S
 +++ b/s390/start.S
 @@ -30,6 +30,17 @@ _start:
@@ -2368,11 +2789,11 @@ index c0f971f..585faf7 100644
  	st	%r4,0(%r1)
  
 +#ifdef WANT_ELFINFO
-+#  warning "VERIFY ME!"
++	lhi	%r6, -4
 +1:	ahi	%r4, 4		# increment envp
-+	l	%r12, -4(0,%r4)	# load envp[-1] into %r12
++	l	%r12, 0(%r6,%r4)	# load envp[-1] into %r12
 +	or	%r12, %r12	# test %r12 for NULL
-+	brc	1, 1b
++	jne	1b
 +
 +	ahi	%r1, 4
 +	st	%r4,0(%r1)
@@ -2381,20 +2802,66 @@ index c0f971f..585faf7 100644
  /* call main or _dyn_start */
  	l	%r1,0(%r13)
  	basr	%r14,%r1
+diff --git a/s390/syscalls.h b/s390/syscalls.h
+index 6ea4a2b..cfd3d82 100644
+--- a/s390/syscalls.h
++++ b/s390/syscalls.h
+@@ -277,6 +277,7 @@
+ #define __NR_mknodat		290
+ #define __NR_fchownat		291
+ #define __NR_futimesat		292
++#define __NR_fstatat64		293
+ #define __NR_unlinkat		294
+ #define __NR_renameat		295
+ #define __NR_linkat		296
+diff --git a/s390x/setjmp.S b/s390x/setjmp.S
+index 7522373..762f9e3 100644
+--- a/s390x/setjmp.S
++++ b/s390x/setjmp.S
+@@ -14,6 +14,7 @@ __setjmp:
+ 
+ .global _setjmp
+ .type	_setjmp,@function
++_setjmp:
+ 	lhi	%r3,0
+ .size	_setjmp,.-_setjmp
+ 
+@@ -26,15 +27,18 @@ __sigsetjmp:
+ 	std	%f6,48(%r2)
+ 
+ 	/* Make a tail call to __sigjmp_save; it takes the same args.  */
+-	basr	%r1,%r0
++	basr	%r1,0
+ #ifdef	PIC
+-.L0:	la	%r1,.L1-.L0(0,%r1)
++.L0:	al	%r1,.L1-.L0(0,%r1)
+ 	l	%r1,__sigjmp_save@GOT12(0,%r1)
++#else
++.L0:	l	%r1,.L1-.L0(0,%r1)
++#endif
+ 	br	%r1
++	.p2align 3
++#ifdef	PIC
+ .L1:	.long	_GLOBAL_OFFSET_TABLE_-.L0
+ #else
+-	l	%r1,.L1(0,%r1)
+-	br	%r1
+ .L1:	.long	__sigjmp_save
+ #endif
+ .size __sigsetjmp,.-__sigsetjmp;
 diff --git a/s390x/start.S b/s390x/start.S
-index 25895a6..15ad1f9 100644
+index 25895a6..f644eb9 100644
 --- a/s390x/start.S
 +++ b/s390x/start.S
-@@ -26,6 +26,17 @@ _start:
+@@ -26,6 +26,16 @@ _start:
  	larl	%r13,environ
  	stg	%r4,0(%r13)
  
 +#ifdef WANT_ELFINFO
-+#  warning "VERIFY ME!"
 +1:	aghi	%r4, 8		# increment envp
 +	lg	%r12, -8(0,%r4)	# load envp[-1] into %r12
 +	ogr	%r12, %r12	# test %r12 for NULL
-+	brc	1, 1b
++	jne	1b
 +
 +	aghi	%r13, 8
 +	stg	%r4,0(%r13)
@@ -2450,6 +2917,32 @@ index a7841e3..bb463c9 100644
  /* When starting a binary via the dynamic linker, %g1 contains the
     address of the shared library termination function, which will be
     registered with atexit(). If we are statically linked, this will
+diff --git a/sparc/strchr.S b/sparc/strchr.S
+index e27e454..8c2c78c 100644
+--- a/sparc/strchr.S
++++ b/sparc/strchr.S
+@@ -11,6 +11,8 @@
+ 
+ .text
+ .globl strchr
++.weak index
++index:
+ strchr:
+ 	ldub [%o0], %o2
+ 	cmp %o2, %o1
+diff --git a/sparc/strcmp.S b/sparc/strcmp.S
+index 50c82b5..81379f2 100644
+--- a/sparc/strcmp.S
++++ b/sparc/strcmp.S
+@@ -11,6 +11,8 @@
+ 
+ .text
+ .globl strcmp
++.weak strcoll
++strcoll:
+ strcmp:
+ 	clr %o4
+ .Lloop:
 diff --git a/sparc64/start.S b/sparc64/start.S
 index a79c4e7..a884658 100644
 --- a/sparc64/start.S
@@ -2504,17 +2997,18 @@ index a4dd95e..294f2d4 100644
 +.size __elfinfo,.-__elfinfo
 +#endif
 diff --git a/syscalls.s/fadvise64.S b/syscalls.s/fadvise64.S
-index eab3986..fe448b1 100644
+index 89a6eea..23e01e4 100644
 --- a/syscalls.s/fadvise64.S
 +++ b/syscalls.s/fadvise64.S
-@@ -1,12 +1,11 @@
+@@ -3,15 +3,14 @@
+ 
  #include "syscalls.h"
  
 +#ifdef __NR_fadvise64
 +syscall(fadvise64,fadvise64)
 +
  #ifndef __NR_fadvise64_64
-+.set   posix_fadvise, fadvise64
++posix_fadvise = fadvise64
  .globl posix_fadvise
 -.type posix_fadvise,@function
 -posix_fadvise:
@@ -2524,17 +3018,59 @@ index eab3986..fe448b1 100644
 -syscall(fadvise64,fadvise64)
 -
  #endif
+ 
+ #endif
+diff --git a/syscalls.s/fstatat.S b/syscalls.s/fstatat.S
+new file mode 100644
+index 0000000..3d6a4ca
+--- /dev/null
++++ b/syscalls.s/fstatat.S
+@@ -0,0 +1,5 @@
++#include "syscalls.h"
++
++#ifdef __NR_fstatat
++syscall(fstatat,fstatat)
++#endif
+diff --git a/syscalls.s/fstatat64.S b/syscalls.s/fstatat64.S
+new file mode 100644
+index 0000000..3c6370c
+--- /dev/null
++++ b/syscalls.s/fstatat64.S
+@@ -0,0 +1,5 @@
++#include "syscalls.h"
++
++#ifdef __NR_fstatat64
++syscall(fstatat64,fstatat64)
++#endif
+diff --git a/syscalls.s/newfstatat.S b/syscalls.s/newfstatat.S
+index daa2714..4dd0a97 100644
+--- a/syscalls.s/newfstatat.S
++++ b/syscalls.s/newfstatat.S
+@@ -2,4 +2,11 @@
+ 
+ #ifdef __NR_newfstatat
+ syscall(newfstatat,newfstatat)
++
++#ifdef __NR_fstatat64
++#  error __NR_newfstatat and __NR_fstatat64 must not be defined both
++#endif
++
++fstatat = newfstatat
++.globl fstatat
+ #endif
 diff --git a/test/.gitignore b/test/.gitignore
 new file mode 100644
-index 0000000..92c5678
+index 0000000..aecfe9d
 --- /dev/null
 +++ b/test/.gitignore
-@@ -0,0 +1,85 @@
+@@ -0,0 +1,89 @@
 +/adjtime
 +/alarm
 +/argv
++/asctime
 +/asprintf
 +/atexit
++/atfile
 +/bsearch
 +/byteswap
 +/calloc
@@ -2612,18 +3148,22 @@ index 0000000..92c5678
 +/strtol
 +/sysconf
 +/sysenter
++/test
++/testing
 +/ungetc
 +/utime
 +/waitpid
 diff --git a/test/Makefile b/test/Makefile
-index 2e406f3..152cf5a 100644
+index 701ffe2..39105a9 100644
 --- a/test/Makefile
 +++ b/test/Makefile
-@@ -8,13 +8,13 @@ CFLAGS=-nostdinc -Wall
+@@ -7,14 +7,14 @@ CFLAGS=-nostdinc -Wall
+ 
  LCOMPAT=-lcompat
  
- TESTPROGRAMS=adjtime alarm argv asprintf atexit bsearch byteswap calloc confstr cycles empty fadvise flush fnmatch \
+-TESTPROGRAMS=adjtime alarm argv asprintf atexit bsearch byteswap calloc confstr cycles empty fadvise flush fnmatch \
 -fputc ftw fwrite getaddrinfo getenv getgrnam gethostbyaddr gethostbyname \
++TESTPROGRAMS=adjtime alarm argv asctime asprintf atexit atfile bsearch byteswap calloc confstr cycles empty fadvise flush fnmatch \
 +fputc ftruncate ftw fwrite getaddrinfo getenv getgrnam gethostbyaddr gethostbyname \
  gethostbyname_r getmntent getopt getpass getpwnam getservbyname getservbyport getusershell \
 -glob grent hasmntopt hello iconv if_nameindex ltostr malloc-debugger md5_testharness \
@@ -2669,6 +3209,39 @@ index d42d129..8d7a016 100644
 +  printf("%lu/%d\n", (unsigned long)b.tv_sec, (int)b.tv_usec);
    return 0;
  }
+diff --git a/test/asctime.c b/test/asctime.c
+new file mode 100644
+index 0000000..f31f537
+--- /dev/null
++++ b/test/asctime.c
+@@ -0,0 +1,27 @@
++#include <assert.h>
++#include <stdlib.h>
++#include <time.h>
++
++int main(void)
++{
++	char		*buf;
++	struct tm const	tm = {
++		.tm_sec = 20,
++		.tm_min = 21,
++		.tm_hour = 22,
++		.tm_mday = 10,
++		.tm_mon = 11,
++		.tm_year = 112,
++	};
++	char		*res;
++
++	buf = malloc(4096);
++	assert(buf != NULL);
++	memset(buf, 23, 4096);
++
++	res = asctime_r(&tm, buf);
++	assert(strcmp(res, asctime(&tm)) == 0);
++	assert(strcmp(res, "Sun Dec 10 22:21:20 2012\n") == 0);
++
++	return EXIT_SUCCESS;
++}
 diff --git a/test/asprintf.c b/test/asprintf.c
 index 996a5aa..0d4f2eb 100644
 --- a/test/asprintf.c
@@ -2695,19 +3268,123 @@ index 709a3e4..79ee392 100644
  }
  
  int main() {
-diff --git a/test/bsearch.c b/test/bsearch.c
-index 961ad35..ede4c88 100644
---- a/test/bsearch.c
-+++ b/test/bsearch.c
-@@ -35,7 +35,7 @@ int main() {
- 	die("bsearch returned NULL\n");
-       }
-       if (k != array+i) die("bsearch found wrong element\n");
--      printf("%d\n",k-array);
-+      printf("%ld\n",k-array);
-     }
-   }
-   return 0;
+diff --git a/test/atfile.c b/test/atfile.c
+new file mode 100644
+index 0000000..cb25379
+--- /dev/null
++++ b/test/atfile.c
+@@ -0,0 +1,111 @@
++#define _GNU_SOURCE
++#define _XOPEN_SOURCE 700
++#define _FILE_OFFSET_BITS 64
++
++#include <stdlib.h>
++#include <fcntl.h>
++#include <errno.h>
++#include <assert.h>
++#include <stdio.h>
++#include <sys/stat.h>
++
++#define TMPDIR	"/tmp"
++
++#define TEST(_op)	do {						\
++		int rc = (_op);						\
++		if (rc < 0) {						\
++			printf("%s:%u: %s: %u/%s\n", __FILE__, __LINE__,	\
++			       # _op, errno, strerror(errno));		\
++			abort();					\
++		}							\
++	} while (0)
++
++#define memeq(_a, _b) \
++	((memcmp(_a, _b, sizeof *(_a)) == 0 ? 0 : -1))
++
++#define memne(_a, _b) \
++	((memcmp(_a, _b, sizeof *(_a)) == 0 ? -1 : 0))
++
++int main(void)
++{
++	char dname_buf[] = "/tmp/test-mmap.XXXXXX";
++	char *dname;
++	int dir_fd;
++	int file_fd;
++	struct stat st[5];
++
++	/* check whether *at(2) syscalls are available */
++	dir_fd = openat(AT_FDCWD, "/", O_DIRECTORY|O_RDONLY);
++	if (dir_fd == -1 && errno == ENOSYS)
++		return EXIT_SUCCESS;	/* kernel too old */
++
++	assert(dir_fd != -1);
++	close(dir_fd);
++
++	/* create a tree like
++	 * /
++	 * +- tmp/
++	 *    +- <tmpname>/
++	 *       |- test/
++	 *       |- some-file
++	 *       +- some-link -> some-file
++	 */
++	dname = mkdtemp(dname_buf);
++	assert(dname != NULL);
++
++	dir_fd = open(dname, O_DIRECTORY|O_RDONLY);
++	assert(dir_fd != -1);
++
++	TEST(mkdirat(dir_fd, "test", 0700));
++	TEST(chdir(dname));
++	TEST(chdir("test"));
++
++	file_fd = openat(dir_fd, "some-file", O_WRONLY|O_CREAT, 0400);
++	assert(file_fd != -1);
++
++	write(file_fd, "some text\n", 10);
++	TEST(close(file_fd));
++
++	TEST(symlinkat("some-file", dir_fd, "some-link"));
++	TEST(symlinkat("dangling", dir_fd, "dangling-link"));
++
++	/* now check, whether attributes of 'some-file' and 'some-link'
++	 * returned by stat(2), lstat(2) and fstatat(2) are consistent */
++	TEST(stat("../some-file", &st[0]));
++	TEST(lstat("../some-link", &st[1]));
++
++	TEST(fstatat(dir_fd, "some-file", &st[2], 0));
++	TEST(fstatat(dir_fd, "some-link", &st[3], AT_SYMLINK_NOFOLLOW));
++	TEST(fstatat(dir_fd, "some-link", &st[4], 0));
++
++	TEST(faccessat(dir_fd, "some-file", R_OK, 0));
++	TEST((faccessat(dir_fd, "some-file", W_OK, 0) == -1 &&
++	      errno == EACCES) ? 0 : -1);;
++
++	if (1)
++		fputs("skipping faccessat(..., AT_SYMLINK_NOFOLLOW) checks for now...\n",
++		      stderr);
++	else {
++		/* this is broken for dietlibc; the 'flags' parameter is not checked
++		 * by the kernel but must be handled by the libc itself */
++		TEST(faccessat(dir_fd, "some-link", W_OK, AT_SYMLINK_NOFOLLOW));
++		TEST(faccessat(dir_fd, "dangling-link", R_OK, AT_SYMLINK_NOFOLLOW));
++	}
++
++	assert(st[0].st_mode == (0400 | S_IFREG));
++	assert(S_ISLNK(st[1].st_mode));
++
++	TEST(memne(&st[0], &st[1]));
++	TEST(memeq(&st[0], &st[2]));
++	TEST(memeq(&st[0], &st[4]));
++	TEST(memeq(&st[1], &st[3]));
++
++	/* and cleanup the mess... */
++	TEST(unlinkat(dir_fd, "some-link", 0));
++	TEST(unlinkat(dir_fd, "some-file", 0));
++	TEST(unlinkat(dir_fd, "dangling-link", 0));
++	TEST(unlinkat(dir_fd, "test", AT_REMOVEDIR));
++	TEST(rmdir(dname));
++
++	return EXIT_SUCCESS;
++}
 diff --git a/test/byteswap.c b/test/byteswap.c
 index 19239dd..6f43c25 100644
 --- a/test/byteswap.c
@@ -2730,12 +3407,25 @@ index 19239dd..6f43c25 100644
    return 0; 
  }
 diff --git a/test/cycles.c b/test/cycles.c
-index 35547f8..46b2f32 100644
+index 35547f8..66b3d04 100644
 --- a/test/cycles.c
 +++ b/test/cycles.c
-@@ -13,7 +13,8 @@
+@@ -12,8 +12,21 @@
+   asm volatile ("rdtsc" : "=a" (l), "=d" (h)); \
    dst = (((uint64_t)h) << 32) | l;                             \
  } while (0)
++#elif defined (__powerpc64__)
++#define RDTSC(dst) asm volatile ("mftb %0" : "=r" (dst))
++#elif defined (__powerpc__)
++#define RDTSC(dst) do { \
++  uint32_t chk, tbl, tbu; \
++  /* The code below is as suggested in Motorola reference manual for 32 bits PPCs. */ \
++  __asm__ __volatile__ ("1: mftbu %0; mftb %1; mftbu %2; cmpw %2,%0; bne 1b" \
++    : "=r" (tbu), "=r" (tbl), "=r" (chk) ); \
++  dst = ((uint64_t)tbu << 32) | tbl; \
++} while (0)
++#elif defined (__sparcv9__)
++#define RDTSC(dst) asm volatile ("rd %%tick, %%0":"=r"(dst))
  #else
 -#error "Unimplemented rdtsc"
 +#warning "Unimplemented rdtsc"
@@ -2743,7 +3433,7 @@ index 35547f8..46b2f32 100644
  #endif
  
  extern char **environ;
-@@ -24,7 +25,7 @@ int main(int argc,char* argv[]) {
+@@ -24,7 +37,7 @@ int main(int argc,char* argv[]) {
    if (!fork()) { execve(argv[1],argv+1,environ); exit(1); }
    wait(0);
    RDTSC(b);
@@ -2864,6 +3554,15 @@ index b3c8b22..0c171f8 100644
    if (t) {
      struct if_nameindex* t1=t;
      while (t->if_index) {
+diff --git a/test/inet/.gitignore b/test/inet/.gitignore
+new file mode 100644
+index 0000000..64ef77a
+--- /dev/null
++++ b/test/inet/.gitignore
+@@ -0,0 +1,3 @@
++/test_ifindex
++/tst-gethnm
++/tst-ntoa
 diff --git a/test/malloc-debugger.c b/test/malloc-debugger.c
 index 040196e..058807e 100644
 --- a/test/malloc-debugger.c
@@ -2936,18 +3635,124 @@ index 5e9e65c..9b4bd5e 100644
  }
  
 diff --git a/test/mmap_test.c b/test/mmap_test.c
-index 1fc2616..5aa79eb 100644
+index 1fc2616..acd5665 100644
 --- a/test/mmap_test.c
 +++ b/test/mmap_test.c
-@@ -15,7 +15,7 @@ int main (int argc, char * argv[])
+@@ -1,12 +1,13 @@
+-
+ #include <stdio.h>
+ #include <fcntl.h>
+ #include <unistd.h>
++#include <stdlib.h>
++#include <string.h>
+ #include <sys/mman.h>
+ #include <errno.h>
+ 
+-#define FILENAME   "/tmp/zz_temp_mmap_test"
+-#define TESTSTRING "This is a test string"
++#define TESTSTRING0 "This is a test string"
++#define TESTSTRING1 "Another string for testing"
+ 
+ 
+ int main (int argc, char * argv[])
+@@ -14,16 +15,26 @@ int main (int argc, char * argv[])
+    int fd;
     void *filememory_1;
     void *filememory_2;
-    
+-   
 -   fd = open (FILENAME, O_RDWR | O_CREAT);
-+   fd = open (FILENAME, O_RDWR | O_CREAT, 0600);
-    
+-   
++   void *filememory_3;
++   unsigned int pg_sz = sysconf(_SC_PAGESIZE);
++   char fname[] = "/tmp/test-mmap.XXXXXX";
++
++   fd = mkstemp(fname);
     if (fd < 0)
     {
+-      fprintf (stderr, "Couldn't open %s for writing\n", FILENAME);
++      fprintf (stderr, "Couldn't open %s for writing\n", fname);
+       return (1);
+    }
+ 
+-   write (fd, TESTSTRING, sizeof(TESTSTRING));
++   unlink(fname);
++
++   write (fd, TESTSTRING0, sizeof TESTSTRING0);
++
++   ftruncate(fd, pg_sz);
++   lseek(fd, pg_sz, SEEK_SET);
++   write(fd, TESTSTRING1, sizeof TESTSTRING1);
++
++   ftruncate(fd, 2*pg_sz);
+ 
+    /*
+       Try mmapping the newly created file...
+@@ -38,6 +49,18 @@ int main (int argc, char * argv[])
+    }
+ 
+    /*
++      Test mapping at a given offset
++    */
++
++   filememory_3 = mmap (NULL, 0x0100, PROT_READ, MAP_PRIVATE, fd, pg_sz);
++
++   if (filememory_3 == (void *) -1)
++   {
++      perror("mmap (pg_sz) returned error");
++      return (1);
++   }
++
++   /*
+       Try mmapping with a bogus file descriptor... (should fail)
+    */
+ 
+@@ -49,32 +72,33 @@ int main (int argc, char * argv[])
+       return (1);
+    }
+    
+-   close (fd);
+-
+    /*
+       Check that we can read back from the file OK
+    */
+ 
+-   if ((*(unsigned char *) filememory_1) != TESTSTRING[0])
++   if (memcmp(filememory_1, TESTSTRING0, sizeof TESTSTRING0) != 0)
+    {
+       fprintf (stderr, "mmap doesn't give expected data...\n");
+       return (1);
+    }
+-   
+-   /*
+-      fixme: check unmapping as well.... ??
+-   */
+ 
++   if (memcmp(filememory_3, TESTSTRING1, sizeof TESTSTRING1) != 0)
++   {
++      fprintf (stderr, "mmap (pg_sz) doesn't give expected data...\n");
++      return (1);
++   }
++
++   if (munmap(filememory_3, 0x0100) < 0 ||
++       munmap(filememory_1, 0x0100) < 0)
++   {
++      perror("munmap()");
++      return 1;
++   }
+ 
+    /*
+       Clean up.
+    */
+-
+-   if (unlink (FILENAME) != 0)
+-   {
+-      fprintf (stderr, "Unexpected problem deleting the tempfile... ?\n");
+-      return (1);
+-   }
++   close (fd);
+ 
+    return (0);
+ }
 diff --git a/test/pipe.c b/test/pipe.c
 index fb6ba31..315b4ca 100644
 --- a/test/pipe.c
@@ -3098,15 +3903,138 @@ index 4f5b08f..1e67632 100644
  
    return 0;
  }
+diff --git a/test/runtests-X.sh b/test/runtests-X.sh
+new file mode 100644
+index 0000000..93842e6
+--- /dev/null
++++ b/test/runtests-X.sh
+@@ -0,0 +1,117 @@
++#! /bin/bash
++
++eval $(grep '^\(SUBDIRS\)=' runtests.sh)
++eval $(make --no-print-directory \
++       --eval 'print-tests:;@echo TESTPROGRAMS=\"$(sort $(TESTPROGRAMS))\"' print-tests)
++
++SKIP=(
++  ":asprintf"			# requires special cmdline
++  ":getpass"			# expects input from TTY
++  ":read1"			# expects input
++  ":stdio:tst-ferror"		# expects input
++  ":stdio:tstscanf"		# expects input
++  ":stdlib:testdiv"		# expects input
++)
++
++FAILURES_BOGUS=(
++  ":gethostbyname"		# network test; net might not be available in test environment
++  ":gethostbyname_r"		# network test; net might not be available in test environment
++
++  ":stdlib:tst-environ"		# test uses environ function in unsupported ways (dup keys)
++  ":stdlib:tst-rand48"		# platform dependent; does not give reliable results
++  ":stdlib:tst-strtod"		# infinite recursion in __dtostr()
++  ":time:tst-mktime"		# dietlibc does not support $TZ env
++  ":time:tst-posixtz"		# dietlibc does not support $TZ env
++  ":time:tst-strftime"		# dietlibc does not support glibc specific format specifications
++)
++
++FAILURES_BOGUS_emulator=(
++  ":adjtime"			# ajdtimex() not implement in qemu
++  ":if_nameindex"		# ioctls not implement in qemu
++  ":mmap_test"			# qemu does not pass back mmap(2) error codes
++  ":fadvise"			# bad translation of 64bit args in qemu
++  ":stdio:tst-fseek"		# !! unclear; must be investigated
++  ":dirent:tst-seekdir"		# 32/64 bit issue when calling lseek()
++)
++
++FAILURES_KNOWN=(
++  ":sendfile"			# stdin/stdout not supported; test must be wrapped
++  ":stdio:tstdiomisc"		# scanf(3) fails on some constructs
++  ":stdio:tst-fphex"		# printf(3) does not support %a specifiers
++  ":stdio:tst-printf"		# printf(3) does not support some floating point ops
++  ":stdio:tst-sscanf"		# scanf(3) fails on double input
++  ":stdlib:test-canon"		# realpath(3) is broken...
++)
++
++function is_in() {
++    local	val=$1
++    local	i
++    shift
++
++    for i; do
++	test x"$i" != x"$val" || return 0
++    done
++    return 1
++}
++
++rc=0
++
++: ${ME:=${BASH_SOURCE[0]}}
++: ${EMULATOR:=}
++: ${RUNTEST_INDENT=0}
++export ME
++export RUNTEST_INDENT
++export RUNTEST_NS
++
++case $ME in
++  /*) ;;
++  *) ME=`pwd`/$ME;;
++esac
++
++test -z "$EMULATOR" || \
++    FAILURES_BOGUS=( "${FAILURES_BOGUS[@]}" "${FAILURES_BOGUS_emulator[@]}" )
++
++for p in $TESTPROGRAMS; do
++    ! tty -s || printf '%*s%-20s' $RUNTEST_INDENT '' "$p"
++
++    is_in "$RUNTEST_NS:$p" "${FAILURES_BOGUS[@]}" && fail_bogus=true || fail_bogus=false
++    is_in "$RUNTEST_NS:$p" "${FAILURES_KNOWN[@]}" && fail_known=true || fail_known=false
++
++    if is_in "$RUNTEST_NS:$p" "${SKIP[@]}"; then
++	res='SKIPPED'
++    else
++	$EMULATOR ./$p >/dev/null && failed=false || failed=true
++
++	case $failed:$fail_known:$fail_bogus in
++	  (false:false:*)	res='OK';;
++	  (false:true:true)	res='OK (bogus)';;
++	  (false:true:false)	res="OK (unexpected)"; let ++rc;;
++	  (true:*:true)		res='FAIL (bogus)';;
++	  (true:true:*)		res="FAIL (known)";;
++	  (true:false:*)	res='FAIL'; let ++rc;;
++	esac
++    fi
++
++    ! tty -s || printf '\r'
++
++    printf '%*s%-20s%s\n' $RUNTEST_INDENT '' "$p" "$res"
++done
++
++test $rc -eq 0 || \
++    printf "%*s--> %u tests failed\n" $RUNTEST_INDENT '' $rc
++
++for d in $SUBDIRS; do
++    echo "--- entering directory $d ---"
++    let RUNTEST_INDENT+=2
++    old_ns=$RUNTEST_NS
++    RUNTEST_NS=$RUNTEST_NS:$d
++
++    cd $d && bash $ME || let ++rc
++
++    RUNTEST_NS=$old_ns
++    let RUNTEST_INDENT-=2
++
++    cd $OLDPWD || exit 1
++done
++
++test $rc -eq 0 && exit 0 || exit 1
 diff --git a/test/runtests.sh b/test/runtests.sh
-index d6fb19b..15b70b1 100644
+index d6fb19b..444f8c8 100644
 --- a/test/runtests.sh
 +++ b/test/runtests.sh
 @@ -1,6 +1,6 @@
  SUBDIRS="dirent inet stdio string stdlib time"
  
 -TESTPROGRAMS="adjtime alarm argv atexit bsearch byteswap calloc confstr empty fadvise flush fputc ffs fnmatch ftw fwrite getaddrinfo getenv getdelim getgrnam gethostbyaddr gethostbyname gethostbyname_r getmntent getopt getpwnam getservbyname getservbyport getusershell glob grent hasmntopt hello iconv if_nameindex ltostr malloc-debugger md5_testharness memccpy memchr memcmp memrchr memusage mktime mmap_test pipe printf printftest protoent prototypes putenv pwent rand48 readdir regex select sendfile servent siglist speed spent sprintf sscanf stdarg strcasecmp strcmp strncat strncpy strptime strrchr strstr strtol sysenter ungetc utime waitpid"
-+TESTPROGRAMS="adjtime alarm argv atexit bsearch byteswap calloc confstr empty fadvise flush fputc ffs fnmatch ftruncate ftw fwrite getaddrinfo getenv getdelim getgrnam gethostbyaddr gethostbyname gethostbyname_r getmntent getopt getpwnam getservbyname getservbyport getusershell glob grent hasmntopt hello iconv if_nameindex ltostr malloc-debugger math md5_testharness memccpy memchr memcmp memrchr memusage mktime mmap_test pipe printf printftest protoent prototypes putenv pwent rand48 readdir regex select sendfile servent setjmp siglist sigsetjmp speed spent sprintf sscanf stdarg strcasecmp strcmp strncat strncpy strptime strrchr strstr strtol sysconf sysenter ungetc utime waitpid"
++TESTPROGRAMS="adjtime alarm argv asctime atexit atfile bsearch byteswap calloc confstr empty fadvise flush fputc ffs fnmatch ftruncate ftw fwrite getaddrinfo getenv getdelim getgrnam gethostbyaddr gethostbyname gethostbyname_r getmntent getopt getpwnam getservbyname getservbyport getusershell glob grent hasmntopt hello iconv if_nameindex ltostr malloc-debugger math md5_testharness memccpy memchr memcmp memrchr memusage mktime mmap_test pipe printf printftest protoent prototypes putenv pwent rand48 readdir regex select sendfile servent setjmp siglist sigsetjmp speed spent sprintf sscanf stdarg strcasecmp strcmp strncat strncpy strptime strrchr strstr strtol sysconf sysenter ungetc utime waitpid"
  
  STDIN="read1"
  PASS="getpass" 
@@ -3235,10 +4163,10 @@ index 0000000..15951e5
 +}
 diff --git a/test/sigsetjmp.c b/test/sigsetjmp.c
 new file mode 100644
-index 0000000..3fa71bb
+index 0000000..e289922
 --- /dev/null
 +++ b/test/sigsetjmp.c
-@@ -0,0 +1,140 @@
+@@ -0,0 +1,206 @@
 +#include <assert.h>
 +#include <stdlib.h>
 +#include <stdio.h>
@@ -3263,6 +4191,10 @@ index 0000000..3fa71bb
 +} sigenv = {
 +	.a = TEST_PATTERN "<",
 +	.b = TEST_PATTERN ">",
++};
++
++static double const volatile	FP_REF[] = {
++  0.4, 0.8, 1.5, 1.6, 2.3, 4.2
 +};
 +
 +static int volatile sig_seen;
@@ -3345,6 +4277,63 @@ index 0000000..3fa71bb
 +  printf(" ok\n");
 +};
 +
++static void do_test_fp(int sig_num, int do_save)
++{
++  sigset_t	cur_set;
++  int		rc;
++  double	fp0, fp1, fp2, fp3;
++
++  printf("%s(%d,%d)... ", __func__, sig_num, do_save);
++  fflush(stdout);
++
++  VALIDATE_BUFFERS(0);
++
++  assert(sigprocmask(SIG_SETMASK, NULL, &cur_set) == 0);
++
++  /* verify that tested signal is not blocked */
++  if (sig_num != 0)
++    assert(!sigismember(&cur_set, sig_num));
++
++  fp0 = FP_REF[0];
++  fp1 = FP_REF[1];
++  fp2 = FP_REF[2];
++  fp3 = FP_REF[3];
++
++  sig_seen = 0;
++  rc = sigsetjmp(sigenv.env, do_save);
++
++  if (rc == 0) {
++    fp0 = FP_REF[4];
++    fp3 = FP_REF[5];
++
++    if (sig_num != 0) {
++      raise(sig_num);
++      assert(0);
++    }
++  } else if (rc != sig_num)
++    /* sigsetjmp() returned with an unexpected value */
++    assert(0);
++
++  if (sig_num == 0) {
++    /* "exception" was not triggered; we should see the new values */
++    assert(fp0 == FP_REF[4]);
++    assert(fp1 == FP_REF[1]);
++    assert(fp2 == FP_REF[2]);
++    assert(fp3 == FP_REF[5]);
++  } else {
++    /* "exception" was triggered; we should see the old values */
++    assert(fp0 == FP_REF[0]);
++    assert(fp1 == FP_REF[1]);
++    assert(fp2 == FP_REF[2]);
++    assert(fp3 == FP_REF[3]);
++  }
++
++  VALIDATE_BUFFERS(sig_num);
++  sig_seen = 0;
++
++  printf(" ok\n");
++}
++
 +static void sig_handler(int num)
 +{
 +  assert(sig_seen == 0);
@@ -3376,6 +4365,11 @@ index 0000000..3fa71bb
 +  do_test(SIGBUS, 0, SIGUSR1);
 +  do_test(SIGBUS, 1, 0);
 +  do_test(SIGBUS, 1, SIGUSR1);
++
++  do_test_fp(0, 0);
++  do_test_fp(0, 1);
++  do_test_fp(SIGBUS, 0);
++  do_test_fp(SIGBUS, 1);
 +
 +  return EXIT_SUCCESS;
 +}
@@ -3765,6 +4759,40 @@ index fe2cb5b..92c0b0e 100644
      sleep(1);
      _exit(23);
    }
+diff --git a/x32/start.S b/x32/start.S
+index 86afaaf..3768cba 100644
+--- a/x32/start.S
++++ b/x32/start.S
+@@ -11,12 +11,29 @@ _start:
+ 	
+ 	leaq	4(%rsi,%rdi,4),%rdx	/* %edx = envp = (4*edi)+%esi+4 */
+ 
++#ifdef WANT_ELFINFO
++	/* untested !! */
++
++#ifdef __DYN_LIB
++	movl	environ@GOTPCREL(%rip), %eax
++#else
++	leal	environ(%rip), %eax
++#endif
++	movl	%edx, (%eax)	/* environ */
++
++1:	add	$4, %edx	/* incorment envp */
++	cmpl	$0, -4(%edx)	/* load envp[-1] */
++	jne	1b		/* ... until envp[-1]==NULL */
++
++	movl	%edx, 4(%eax)	/* __elfinfo */
++#else	/* WANT_ELFINFO */
+ #ifdef __DYN_LIB
+ 	movl	environ@GOTPCREL(%rip), %eax
+ 	movl	%edx, (%eax)
+ #else
+ 	movl	%edx, environ(%rip)
+ #endif
++#endif	/* WANT_ELFINFO */
+ 
+ #ifdef PROFILING
+ 	pushl	%edi			/* save reg args */
 diff --git a/x86_64/__time.S b/x86_64/__time.S
 new file mode 100644
 index 0000000..774b67f
@@ -3782,6 +4810,18 @@ index 0000000..774b67f
 +	ret
 +.Lhere:
 +	.size	 time,.Lhere-time
+diff --git a/x86_64/dyn_syscalls.S b/x86_64/dyn_syscalls.S
+index c1aa035..1aa7da1 100644
+--- a/x86_64/dyn_syscalls.S
++++ b/x86_64/dyn_syscalls.S
+@@ -141,7 +141,6 @@ __error_unified_syscall:
+ #include "../syscalls.s/n_sigprocmask.S"
+ #include "../syscalls.s/n_sigsuspend.S"
+ #include "../syscalls.s/nanosleep.S"
+-#include "../syscalls.s/nice.S"
+ #include "../syscalls.s/open.S"
+ #include "../syscalls.s/pause.S"
+ #include "../syscalls.s/personality.S"
 diff --git a/x86_64/start.S b/x86_64/start.S
 index adc461a..8b4f3c9 100644
 --- a/x86_64/start.S

@@ -1,0 +1,73 @@
+diff -p -up ./include/dirent.h.tv ./include/dirent.h
+--- ./include/dirent.h.tv	2012-01-13 13:02:16.367476602 +0000
++++ ./include/dirent.h	2012-01-13 13:07:06.741757065 +0000
+@@ -37,6 +37,8 @@ DIR *fdopendir(int fd) __THROW;
+ int closedir (DIR *__dirp) __THROW;
+ struct dirent *readdir (DIR *__dirp) __THROW;
+ struct dirent64 *readdir64 (DIR *__dirp) __THROW;
++int readdir_r(DIR *dirp, struct dirent *entry, struct dirent **result) __THROW;
++int readdir64_r(DIR *dirp, struct dirent64 *entry, struct dirent64 **result) __THROW;
+ void rewinddir (DIR *__dirp) __THROW;
+ void seekdir (DIR *__dirp, long int __pos) __THROW;
+ long int telldir (DIR *__dirp) __THROW;
+@@ -60,6 +62,7 @@ extern int dirfd(DIR *dirp) __THROW __at
+ #if defined _FILE_OFFSET_BITS && _FILE_OFFSET_BITS == 64
+ #define dirent dirent64
+ #define readdir readdir64
++#define readdir_r readdir64_r
+ #define scandir scandir64
+ #define alphasort alphasort64
+ #endif
+diff -p -up ./lib/readdir64.c.tv ./lib/readdir64.c
+--- ./lib/readdir64.c.tv	2012-01-13 13:04:01.055577808 +0000
++++ ./lib/readdir64.c	2012-01-13 13:08:04.859813107 +0000
+@@ -5,6 +5,7 @@
+ #include <stdlib.h>
+ #include <errno.h>
+ #include <string.h>
++#include <errno.h>
+ #include "syscalls.h"
+ 
+ #ifndef __NR_getdents64
+@@ -60,3 +61,14 @@ again:
+ #endif
+ }
+ #endif
++
++/*
++ * NOT thread-safe...
++ */
++
++int readdir64_r(DIR *dirp, struct dirent64 *entry, struct dirent64 **result) {
++     *result = readdir(dirp);
++     if (*result)
++         *entry = **result;
++     return *result ? 0 : errno;
++}
+diff -p -up ./lib/readdir.c.tv ./lib/readdir.c
+--- ./lib/readdir.c.tv	2012-01-13 13:04:02.727579423 +0000
++++ ./lib/readdir.c	2012-01-13 13:07:49.006797823 +0000
+@@ -2,6 +2,7 @@
+ #include <unistd.h>
+ #include <dirent.h>
+ #include <stdlib.h>
++#include <errno.h>
+ 
+ struct dirent* readdir(DIR *d) {
+   if (!d->num || (d->cur += ((struct dirent*)(d->buf+d->cur))->d_reclen)>=d->num) {
+@@ -11,3 +12,15 @@ struct dirent* readdir(DIR *d) {
+   }
+   return (struct dirent*)(d->buf+d->cur);
+ }
++
++/*
++ * NOT thread-safe...
++ */
++
++int readdir_r(DIR *dirp, struct dirent *entry, struct dirent **result)
++{
++     *result = readdir(dirp);
++     if (*result)
++         *entry = **result;
++     return *result ? 0 : errno;
++}
