@@ -157,6 +157,7 @@ rm -f x86_64/getpriority.S
 
 # fix execute permission on test scripts
 chmod a+x test/{dirent,inet,stdio,string,stdlib,time}/runtests.sh
+sed -i 's/3-6/3-7/g' Makefile*
 
 %build
 %make %{cross_make_flags}
@@ -166,7 +167,7 @@ chmod a+x test/{dirent,inet,stdio,string,stdlib,time}/runtests.sh
 %if %{build_check}
 cd test; rm *.c.*
 export DIETHOME="%{_builddir}/%{name}-%{version}-%{snap}"
-MYARCH=`uname -m | sed -e 's/i[4-9]86/i386/' -e 's/armv[3-6][lb]/arm/'`
+MYARCH=`uname -m | sed -e 's/i[4-9]86/i386/' -e 's/armv[3-7][lb]/arm/'`
 find -name "Makefile" | xargs perl -pi -e "s|^DIET.*|DIET=\"${DIETHOME}/bin-${MYARCH}/diet\"|g"
 %make
 cd ..
@@ -189,9 +190,6 @@ cd ..
 rm -rf %{buildroot}
 
 make %{cross_make_flags} DESTDIR=%{buildroot} install
-
-%clean
-rm -rf %{buildroot}
 
 %files devel
 %defattr(-,root,root)
