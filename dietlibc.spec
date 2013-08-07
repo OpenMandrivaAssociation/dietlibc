@@ -1,7 +1,7 @@
 %define _enable_debug_packages %{nil}
 %define debug_package          %{nil}
 
-%define snap 20120825
+%define snap %{nil}
 
 %define name	%{cross_prefix}dietlibc
 
@@ -29,14 +29,19 @@
 Summary:	C library optimized for size
 Name:		%{name}
 Version:	0.33
-Release:	%mkrel 4.%{snap}.3
+%if "%{snap}" != ""
+Release:	5.%{snap}.1
+Source0:	http://www.fefe.de/dietlibc/dietlibc-%{version}.%{snap}.tar.xz
+%else
+Release:	5
+Source0:	http://www.fefe.de/dietlibc/dietlibc-%{version}.tar.bz2
+%endif
 License:	GPL
 Group:		Development/Other
 %if %{build_cross}
 BuildRequires:	%{cross_prefix}gcc
 %endif
 URL:		http://www.fefe.de/dietlibc/
-Source0:	http://www.fefe.de/dietlibc/dietlibc-%{version}.%{snap}.tar.xz
 Source2:	build_cross_dietlibc.sh
 # all in one from RH:
 Patch9999:		dietlibc-github.patch
@@ -63,8 +68,6 @@ Patch300:	diet_arm_eabi_time.patch
 Patch301:	diet_arm_create_module.patch
 # (tv) from http://svn.exactcode.de/t2/trunk/package/base/dietlibc/, for kmod:
 Patch305:	fstatat.patch
-# (tv) implement missing functions for kmod:
-Patch321:	readdir_r.diff
 # (tv) add string.h's basename (prevent libkmod to segfault in basebame())
 Patch322:	basename.diff
 
@@ -87,8 +90,11 @@ Provides:	%{name} = %{version}-%{release}
 Small libc for building embedded applications.
 
 %prep
-
+%if "%{snap}" != ""
 %setup -q -n %{name}-%{version}.%{snap}
+%else
+%setup -q
+%endif
 
 find . -type d -perm 0700 -exec chmod 755 {} \;
 find . -type f -perm 0555 -exec chmod 755 {} \;
@@ -116,7 +122,6 @@ done
 %patch300 -p1 -b .arm_time
 %patch301 -p1 -b .arm_create_module
 %patch305 -p1 -b .at2
-%patch321 -p1 -b .readdir_r
 %patch322 -p1 -b .readdir_r
 
 %patch113 -p0 -b .386_types
@@ -143,7 +148,11 @@ cd test; rm *.c.*
 sed -i -e 's!cycles empty!empty!' Makefile
 %endif
 # fix build in chroot:
+%if "%{snap}" != ""
 export DIETHOME="%{_builddir}/%{name}-%{version}.%{snap}"
+%else
+export DIETHOME="%{_builddir}/%{name}-%{version}"
+%endif
 MYARCH=`uname -m | sed -e 's/i[4-9]86/i386/' -e 's/armv[3-7]t\?e\?[lb]/arm/' -e 's!mips!%{_arch}!g'`
 find -name "Makefile" | xargs perl -pi -e "s|^DIET.*|DIET=\"${DIETHOME}/bin-${MYARCH}/diet\"|g" 	 
 # compile test suite:

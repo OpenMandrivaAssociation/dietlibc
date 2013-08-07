@@ -2005,32 +2005,6 @@ index 2530d1a..847685e 100644
  		MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
      if (t == MAP_FAILED)
  lose:
-diff --git a/lib/qsort.c b/lib/qsort.c
-index 8c24b77..2523d5d 100644
---- a/lib/qsort.c
-+++ b/lib/qsort.c
-@@ -30,7 +30,7 @@ static void quicksort(char* base,size_t size,ssize_t l,ssize_t r,
-      data is already sorted.  Try to improve by exchanging it with a
-      random other pivot.
-    */
--  exch(base,size,l+(random()%(r-l)),r);
-+  exch(base,size,l+(rand()%(r-l)),r);
- #elif defined MID
-   /*
-      We chose the rightmost element in the array to be sorted as pivot,
-diff --git a/lib/readdir.c b/lib/readdir.c
-index ed885a5..d80a406 100644
---- a/lib/readdir.c
-+++ b/lib/readdir.c
-@@ -5,7 +5,7 @@
- 
- struct dirent* readdir(DIR *d) {
-   if (!d->num || (d->cur += ((struct dirent*)(d->buf+d->cur))->d_reclen)>=d->num) {
--    int res=getdents(d->fd,(struct dirent*)d->buf,sizeof (d->buf)-1);
-+    int res=getdents(d->fd,(struct dirent*)d->buf,__DIRSTREAM_BUF_SIZE-1);
-     if (res<=0) return 0;
-     d->num=res; d->cur=0;
-   }
 diff --git a/lib/readdir64.c b/lib/readdir64.c
 index 924f0a8..06d073b 100644
 --- a/lib/readdir64.c
@@ -2543,19 +2517,6 @@ index f197482..df453ec 100644
      __fflush_stdout();
      __fflush_stderr();
      for (res=0, f=__stdio_root; f; f=f->next)
-diff --git a/libstdio/fwrite.c b/libstdio/fwrite.c
-index 464abdd..9f4e8e5 100644
---- a/libstdio/fwrite.c
-+++ b/libstdio/fwrite.c
-@@ -49,7 +49,7 @@ notlinewise:
-     } else
-       done=0;
-     for (i=done; i<len; ++i)
--      if (fputc_unlocked(((char*)ptr)[i],stream)) {
-+      if (fputc_unlocked(((char*)ptr)[i],stream) == EOF) {
- 	res=len-i;
- 	goto abort;
-       }
 diff --git a/libugly/asctime_r.c b/libugly/asctime_r.c
 index 43c5e2c..9859f5f 100644
 --- a/libugly/asctime_r.c
@@ -4759,40 +4720,6 @@ index fe2cb5b..92c0b0e 100644
      sleep(1);
      _exit(23);
    }
-diff --git a/x32/start.S b/x32/start.S
-index 86afaaf..3768cba 100644
---- a/x32/start.S
-+++ b/x32/start.S
-@@ -11,12 +11,29 @@ _start:
- 	
- 	leaq	4(%rsi,%rdi,4),%rdx	/* %edx = envp = (4*edi)+%esi+4 */
- 
-+#ifdef WANT_ELFINFO
-+	/* untested !! */
-+
-+#ifdef __DYN_LIB
-+	movl	environ@GOTPCREL(%rip), %eax
-+#else
-+	leal	environ(%rip), %eax
-+#endif
-+	movl	%edx, (%eax)	/* environ */
-+
-+1:	add	$4, %edx	/* incorment envp */
-+	cmpl	$0, -4(%edx)	/* load envp[-1] */
-+	jne	1b		/* ... until envp[-1]==NULL */
-+
-+	movl	%edx, 4(%eax)	/* __elfinfo */
-+#else	/* WANT_ELFINFO */
- #ifdef __DYN_LIB
- 	movl	environ@GOTPCREL(%rip), %eax
- 	movl	%edx, (%eax)
- #else
- 	movl	%edx, environ(%rip)
- #endif
-+#endif	/* WANT_ELFINFO */
- 
- #ifdef PROFILING
- 	pushl	%edi			/* save reg args */
 diff --git a/x86_64/__time.S b/x86_64/__time.S
 new file mode 100644
 index 0000000..774b67f
@@ -4872,3 +4799,14 @@ index 774b67f..690ee30 100644
 -.Lhere:
 -	.size	 time,.Lhere-time
 +/* avoid empty source file */
+--- dietlibc-0.33/lib/readdir_r.c.omv~	2013-08-06 12:29:59.827331183 +0200
++++ dietlibc-0.33/lib/readdir_r.c	2013-08-06 12:30:09.216613485 +0200
+@@ -15,7 +15,7 @@ int readdir_r(DIR *d,struct dirent* entr
+   struct linux_dirent* ld;
+   *result=0;
+   if (!d->num || (d->cur += ((struct dirent*)(d->buf+d->cur))->d_reclen)>=d->num) {
+-    int res=getdents(d->fd,(struct dirent*)d->buf,sizeof (d->buf)-1);
++    int res=getdents(d->fd,(struct dirent*)d->buf,__DIRSTREAM_BUF_SIZE-1);
+     if (res<=0)
+       return res<0;
+     d->num=res; d->cur=0;
