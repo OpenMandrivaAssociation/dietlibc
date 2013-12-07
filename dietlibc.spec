@@ -33,7 +33,7 @@ Version:	0.33
 Release:	5.%{snap}.1
 Source0:	http://www.fefe.de/dietlibc/dietlibc-%{version}.%{snap}.tar.xz
 %else
-Release:	7
+Release:	8
 Source0:	http://www.fefe.de/dietlibc/dietlibc-%{version}.tar.bz2
 %endif
 License:	GPL
