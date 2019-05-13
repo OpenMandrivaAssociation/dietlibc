@@ -28,13 +28,13 @@
 
 Summary:	C library optimized for size
 Name:		%{name}
-Version:	0.33
+Version:	0.34
 %if "%{snap}" != ""
 Release:	5.%{snap}.1
 Source0:	http://www.fefe.de/dietlibc/dietlibc-%{version}.%{snap}.tar.xz
 %else
-Release:	15
-Source0:	http://www.fefe.de/dietlibc/dietlibc-%{version}.tar.bz2
+Release:	1
+Source0:	http://www.fefe.de/dietlibc/dietlibc-%{version}.tar.xz
 %endif
 License:	GPL
 Group:		Development/Other
@@ -138,7 +138,7 @@ sed -i \
 chmod a+x test/{dirent,inet,stdio,string,stdlib,time}/runtests.sh
 
 %build
-%make %{cross_make_flags} DEBUG=1
+%make_build %{cross_make_flags} DEBUG=1
 
 %check
 # make and run the tests
@@ -156,8 +156,8 @@ export DIETHOME="%{_builddir}/%{name}-%{version}"
 MYARCH=`uname -m | sed -e 's/i[4-9]86/i386/' -e 's/armv[3-7]t\?e\?[lb]/arm/' -e 's!mips!%{_arch}!g'`
 find -name "Makefile" | xargs perl -pi -e "s|^DIET.*|DIET=\"${DIETHOME}/bin-${MYARCH}/diet\"|g" 	 
 # compile test suite:
-%make all  DEBUG=1
-%make -C inet all DEBUG=1
+%make_build all  DEBUG=1
+%make_build -C inet all DEBUG=1
 
 # run the tests
 # getpass requires user input
@@ -167,7 +167,7 @@ cd ..
 %endif
 
 %install
-make %{cross_make_flags} DEBUG=1 DESTDIR=%{buildroot} install
+%make_install %{cross_make_flags} DEBUG=1 DESTDIR=%{buildroot}
 
 %files devel
 %doc AUTHOR BUGS CAVEAT CHANGES README THANKS TODO FAQ
