@@ -44,7 +44,6 @@ BuildRequires:	%{cross_prefix}gcc
 URL:		http://www.fefe.de/dietlibc/
 Source2:	build_cross_dietlibc.sh
 # all in one from RH:
-Patch9999:		dietlibc-github.patch
 Patch1:		dietlibc-0.33-mdkconfig.patch
 Patch5:		dietlibc-0.22-net-ethernet.patch
 Patch6:		dietlibc-0.24-rpc-types.patch
@@ -104,8 +103,6 @@ for i in `find . -type d -name CVS` `find . -type f -name .cvs\*` `find . -type 
     if [ -e "$i" ]; then rm -rf $i; fi >&/dev/null
 done
 
-# P9999 is from fedora 
-%patch9999 -p1 -b .rh
 %patch1 -p0 -b .mdkconfig
 %patch5 -p1 -b .net-ethernet
 %patch6 -p1 -b .rpc-types
