@@ -41,7 +41,7 @@ Group:		Development/Other
 %if %{build_cross}
 BuildRequires:	%{cross_prefix}gcc
 %endif
-URL:		http://www.fefe.de/dietlibc/
+URL:		https://www.fefe.de/dietlibc/
 Source2:	build_cross_dietlibc.sh
 # all in one from RH:
 Patch1:		dietlibc-0.33-mdkconfig.patch
