@@ -39,6 +39,7 @@ Source0:	http://www.fefe.de/dietlibc/dietlibc-%{version}.tar.xz
 License:	GPL
 Group:		Development/Other
 %if %{build_cross}
+BuildRequires:	make
 BuildRequires:	%{cross_prefix}gcc
 %endif
 URL:		https://www.fefe.de/dietlibc/
