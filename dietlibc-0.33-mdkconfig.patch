@@ -1,6 +1,7 @@
---- Makefile	2008-05-09 00:36:56.000000000 -0400
-+++ Makefile.oden	2008-06-08 11:55:10.000000000 -0400
-@@ -1,13 +1,9 @@
+diff -up dietlibc-0.35/Makefile.mdkconfig dietlibc-0.35/Makefile
+--- dietlibc-0.35/Makefile.mdkconfig	2024-10-31 14:30:46.000000000 +0100
++++ dietlibc-0.35/Makefile	2026-03-05 00:05:22.811270704 +0100
+@@ -1,12 +1,13 @@
  INSTALL=install
 -prefix?=/opt/diet
 +prefix?=/usr
@@ -8,38 +9,33 @@
  #DESTDIR=/tmp/fefix
  # Use "make DEBUG=1" to compile a debug version.
  
--LIBDIR=${prefix}/lib
--BINDIR=${prefix}/bin
+ LIBDIR=${prefix}/lib
+ BINDIR=${prefix}/bin
 -MAN1DIR=${prefix}/man/man1
--
- MYARCH:=$(shell uname -m | sed -e 's/i[4-9]86/i386/' -e 's/armv[3-7]t\?[eh]\?[lb]/arm/')
- 
- # This extra-ugly cruft is here so make will not run uname and sed each
-@@ -83,8 +79,13 @@
- 
- # ARCH=$(MYARCH)
- 
-+LIBDIR=${prefix}/lib
-+BINDIR=${prefix}/bin
 +MAN1DIR=${prefix}/share/man/man1
 +INSTALLHOME=$(LIBDIR)/dietlibc
-+
+ 
+ EXTRACFLAGS=-ffunction-sections -fdata-sections
+ EXTRALDFLAGS=-Wl,--gc-sections -Wl,-z,noseparate-code
+@@ -101,7 +102,7 @@ PIE=-fpie
+ # ARCH=$(MYARCH)
+ 
  OBJDIR=bin-$(ARCH)
 -ILIBDIR=$(LIBDIR)-$(ARCH)
 +ILIBDIR=$(INSTALLHOME)/lib-$(ARCH)
  
- HOME=$(shell pwd)
+ DIETHOME=$(shell pwd)
  
-@@ -318,7 +319,7 @@ $(OBJDIR)/diet: $(OBJDIR)/start.o $(OBJD
+@@ -360,7 +361,7 @@ $(OBJDIR)/diet: $(OBJDIR)/start.o diet.c
  	$(STRIP) -R .comment -R .note $@
  
- $(OBJDIR)/diet-i: $(OBJDIR)/start.o $(OBJDIR)/dyn_start.o diet.c $(OBJDIR)/dietlibc.a $(OBJDIR)/dyn_stop.o
--	$(CROSS)$(CC) -isystem include $(CFLAGS) -nostdlib -o $@ $^ -DDIETHOME=\"$(prefix)\" -DVERSION=\"$(VERSION)\" -DINSTALLVERSION -lgcc
-+	$(CROSS)$(CC) -isystem include $(CFLAGS) -nostdlib -o $@ $^ -DDIETHOME=\"$(INSTALLHOME)\" -DVERSION=\"$(VERSION)\" -DINSTALLVERSION -lgcc
+ $(OBJDIR)/diet-i: $(OBJDIR)/start.o diet.c $(OBJDIR)/dietlibc.a $(OBJDIR)/crtend.o
+-	$(CCC) -static -isystem include $(CFLAGS) -nostdlib -o $@ $^ -DDIETHOME=\"$(prefix)\" -DVERSION=\"$(VERSION)\" -DINSTALLVERSION -lgcc $(EXTRALDFLAGS)
++	$(CCC) -static -isystem include $(CFLAGS) -nostdlib -o $@ $^ -DDIETHOME=\"$(INSTALLHOME)\" -DVERSION=\"$(VERSION)\" -DINSTALLVERSION -lgcc $(EXTRALDFLAGS)
  	$(STRIP) -R .comment -R .note $@
  
  $(PICODIR)/diet-dyn: $(PICODIR)/start.o $(PICODIR)/dyn_start.o diet.c
-@@ -380,7 +381,7 @@
+@@ -434,7 +435,7 @@ install-pic:
  	if test -f $(PICODIR)/libc.so -a ! -f $(DESTDIR)/etc/diet.ld.conf; then echo "$(ILIBDIR)" > $(DESTDIR)/etc/diet.ld.conf; fi
  
  install-headers:

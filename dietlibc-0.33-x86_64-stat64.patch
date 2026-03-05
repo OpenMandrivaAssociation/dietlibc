@@ -1,12 +1,7 @@
---- dietlibc-0.27/x86_64/fstat64.S.stat64	2004-12-08 15:44:26.905907603 -0500
-+++ dietlibc-0.27/x86_64/fstat64.S	2004-12-08 15:45:42.515346313 -0500
-@@ -0,0 +1,3 @@
-+#include "syscalls.h"
-+
-+syscall(fstat,fstat64)
---- dietlibc-0.31/include/sys/stat.h.x86_64-stat64	2007-07-02 20:20:56.000000000 +0200
-+++ dietlibc-0.31/include/sys/stat.h	2007-10-28 22:46:33.000000000 +0100
-@@ -524,9 +524,32 @@
+diff -up dietlibc-0.35/include/sys/stat.h.x86_64-stat64 dietlibc-0.35/include/sys/stat.h
+--- dietlibc-0.35/include/sys/stat.h.x86_64-stat64	2024-10-04 18:54:32.000000000 +0200
++++ dietlibc-0.35/include/sys/stat.h	2026-03-05 00:07:56.242731442 +0100
+@@ -594,9 +594,32 @@ struct stat {
  	unsigned long	st_dev;
  	unsigned long	st_ino;
  	unsigned long	st_nlink;
@@ -42,14 +37,18 @@
  	uint32_t	__pad0;
  	unsigned long	 st_rdev;
  	unsigned long	st_size;
---- dietlibc-0.31/include/sys/stat.h~	2007-12-31 18:18:46.000000000 +0100
-+++ dietlibc-0.31/include/sys/stat.h	2007-12-31 18:20:06.000000000 +0100
-@@ -540,7 +563,7 @@
- 	unsigned long	st_ctime_nsec;
- 	long		__unused[3];
+@@ -628,6 +651,7 @@ struct stat {
+ 	uint64_t	st_ctime_nsec;
+ 	uint64_t	__unused[3];
  };
--
 +#endif
+ 
  #elif defined(__ia64__)
  
- struct stat {
+diff -up dietlibc-0.35/x86_64/fstat64.S.x86_64-stat64 dietlibc-0.35/x86_64/fstat64.S
+--- dietlibc-0.35/x86_64/fstat64.S.x86_64-stat64	2026-03-05 00:07:01.952439643 +0100
++++ dietlibc-0.35/x86_64/fstat64.S	2026-03-05 00:07:01.952439643 +0100
+@@ -0,0 +1,3 @@
++#include "syscalls.h"
++
++syscall(fstat,fstat64)

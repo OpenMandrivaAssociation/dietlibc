@@ -1,0 +1,75 @@
+diff -up dietlibc-0.35/librpc/svc.c.omv~ dietlibc-0.35/librpc/svc.c
+--- dietlibc-0.35/librpc/svc.c.omv~	2026-03-05 00:22:29.014300281 +0100
++++ dietlibc-0.35/librpc/svc.c	2026-03-05 00:23:00.356261777 +0100
+@@ -73,7 +73,7 @@ static struct svc_callout {
+ 	struct svc_callout *sc_next;
+ 	unsigned long sc_prog;
+ 	unsigned long sc_vers;
+-	void (*sc_dispatch) ();
++	void (*sc_dispatch) (struct svc_req*, SVCXPRT*);
+ } *svc_head;
+ 
+ static struct svc_callout *svc_find(unsigned long prog, unsigned long vers, struct svc_callout **prev);
+@@ -139,7 +139,7 @@ bool_t svc_register(xprt, prog, vers, di
+ SVCXPRT *xprt;
+ unsigned long prog;
+ unsigned long vers;
+-void (*dispatch) ();
++void (*dispatch) (struct svc_req*, SVCXPRT*);
+ rpcprot_t protocol;
+ {
+ 	struct svc_callout *prev;
+diff -up dietlibc-0.35/librpc/svc_auth.c.omv~ dietlibc-0.35/librpc/svc_auth.c
+--- dietlibc-0.35/librpc/svc_auth.c.omv~	2026-03-05 00:23:18.838856890 +0100
++++ dietlibc-0.35/librpc/svc_auth.c	2026-03-05 00:25:55.972009553 +0100
+@@ -56,12 +56,12 @@ static char sccsid[] =
+  *
+  */
+ 
+-enum auth_stat _svcauth_null(void);		/* no authentication */
+-enum auth_stat _svcauth_unix();		/* unix style (uid, gids) */
+-enum auth_stat _svcauth_short();	/* short hand unix style */
++enum auth_stat _svcauth_null(struct svc_req*, struct rpc_msg*);		/* no authentication */
++enum auth_stat _svcauth_unix(struct svc_req*, struct rpc_msg*);		/* unix style (uid, gids) */
++enum auth_stat _svcauth_short(struct svc_req*, struct rpc_msg*);	/* short hand unix style */
+ 
+ static struct {
+-	enum auth_stat (*authenticator) ();
++	enum auth_stat (*authenticator) (struct svc_req*, struct rpc_msg*);
+ } svcauthsw[] = {
+ 	{ _svcauth_null },			/* AUTH_NULL */
+ 	{ _svcauth_unix },			/* AUTH_UNIX */
+@@ -106,9 +106,9 @@ struct rpc_msg *msg;
+ 	return (AUTH_REJECTEDCRED);
+ }
+ 
+-enum auth_stat _svcauth_null( void/*rqst, msg */ )
+-	/*struct svc_req *rqst;
+-	   struct rpc_msg *msg; */
++enum auth_stat _svcauth_null( rqst, msg )
++	struct svc_req *rqst;
++	struct rpc_msg *msg;
+ {
+ 
+ 	return (AUTH_OK);
+diff -up dietlibc-0.35/librpc/svc_simple.c.omv~ dietlibc-0.35/librpc/svc_simple.c
+--- dietlibc-0.35/librpc/svc_simple.c.omv~	2026-03-05 00:26:26.767554908 +0100
++++ dietlibc-0.35/librpc/svc_simple.c	2026-03-05 00:27:13.515779910 +0100
+@@ -48,7 +48,7 @@ static char sccsid[] =
+ #include <string.h>
+ 
+ static struct proglst {
+-	char *(*p_progname) ();
++	char *(*p_progname) (char *xdrbuf);
+ 	int p_prognum;
+ 	int p_procnum;
+ 	xdrproc_t p_inproc, p_outproc;
+@@ -58,7 +58,7 @@ static void universal(struct svc_req *rq
+ static SVCXPRT *transp;
+ struct proglst *pl;
+ 
+-static int registerrpc(int prognum, int versnum, int procnum, char *(*progname)(), xdrproc_t inproc, xdrproc_t outproc)
++static int registerrpc(int prognum, int versnum, int procnum, char *(*progname)(char*), xdrproc_t inproc, xdrproc_t outproc)
+ {
+ 
+ 	if (procnum == NULLPROC) {

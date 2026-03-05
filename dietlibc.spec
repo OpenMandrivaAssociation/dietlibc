@@ -28,12 +28,12 @@
 
 Summary:	C library optimized for size
 Name:		%{name}
-Version:	0.34
+Version:	0.35
 %if "%{snap}" != ""
-Release:	5.%{snap}.1
+Release:	0.%{snap}.1
 Source0:	http://www.fefe.de/dietlibc/dietlibc-%{version}.%{snap}.tar.xz
 %else
-Release:	2
+Release:	1
 Source0:	http://www.fefe.de/dietlibc/dietlibc-%{version}.tar.xz
 %endif
 License:	GPL
@@ -44,32 +44,15 @@ BuildRequires:	%{cross_prefix}gcc
 %endif
 URL:		https://www.fefe.de/dietlibc/
 Source2:	build_cross_dietlibc.sh
-# all in one from RH:
 Patch1:		dietlibc-0.33-mdkconfig.patch
 Patch5:		dietlibc-0.22-net-ethernet.patch
 Patch6:		dietlibc-0.24-rpc-types.patch
+Patch7:		dietlibc-0.35-rpc-compile.patch
 Patch17:	dietlibc-0.33-x86_64-stat64.patch
-Patch18:	dietlibc-0.27-x86_64-lseek64.diff
-Patch23:	dietlibc-0.33-biarch.patch
-Patch26:	dietlibc-0.27-kernel2.6-types.patch
-Patch27:	dietlibc-0.29-cross.patch
-# (UPSTREAMED differently)
-Patch33:	dietlibc-0.33-fix-strncmp.patch
-# (cjw) from PLD, see http://gcc.gnu.org/bugzilla/show_bug.cgi?id=26374
-Patch34:	dietlibc-0.29-ppc-gcc-ldbl128.patch
 # (pixel) add -fno-stack-protector to override default %{optflags}
 Patch37:	dietlibc-0.30-force-no-stack-protector.patch
-Patch113:	dietlibc-0.33-i386-types.patch
 
-# (UPSTREAMED)
-Patch200:       dietlibc_mips_Makefile_fixes.patch
-Patch201:       dietlibc_mips_use_misc.patch
 Patch300:	diet_arm_eabi_time.patch
-Patch301:	diet_arm_create_module.patch
-# (tv) from http://svn.exactcode.de/t2/trunk/package/base/dietlibc/, for kmod:
-Patch305:	fstatat.patch
-# (tv) add string.h's basename (prevent libkmod to segfault in basebame())
-Patch322:	basename.diff
 
 %description
 Small libc for building embedded applications.
@@ -91,9 +74,9 @@ Small libc for building embedded applications.
 
 %prep
 %if "%{snap}" != ""
-%setup -q -n %{name}-%{version}.%{snap}
+%autosetup -p1 -n %{name}-%{version}.%{snap}
 %else
-%setup -q
+%autosetup -p1
 %endif
 
 find . -type d -perm 0700 -exec chmod 755 {} \;
@@ -104,25 +87,6 @@ for i in `find . -type d -name CVS` `find . -type f -name .cvs\*` `find . -type 
     if [ -e "$i" ]; then rm -rf $i; fi >&/dev/null
 done
 
-%patch1 -p0 -b .mdkconfig
-%patch5 -p1 -b .net-ethernet
-%patch6 -p1 -b .rpc-types
-%patch17 -p1 -b .x86_64-stat64
-#patch18 -p0 -b .x86_64-lseek64
-%patch23 -p1 -b .biarch
-%patch26 -p1 -b .kernel2.6-types
-%patch27 -p0 -b .cross
-%patch33 -p1 -b .fix-strncmp
-%patch37 -p1 -b .stack-protector
-
-%patch200 -p1 -b .mips
-%patch201 -p1 -b .mips_misc
-%patch300 -p1 -b .arm_time
-%patch301 -p1 -b .arm_create_module
-%patch305 -p1 -b .at2
-%patch322 -p1 -b .readdir_r
-
-%patch113 -p0 -b .386_types
 rm -f x86_64/getpriority.S
 
 #WANT_VALGRIND_SUPPORT
@@ -136,12 +100,12 @@ sed -i \
 chmod a+x test/{dirent,inet,stdio,string,stdlib,time}/runtests.sh
 
 %build
-%make_build %{cross_make_flags} DEBUG=1
+%make_build %{cross_make_flags} DEBUG=1 STRIP=true
 
 %check
 # make and run the tests
 %if %{build_check}
-cd test; rm *.c.*
+cd test
 %ifarch %mips %arm
 sed -i -e 's!cycles empty!empty!' Makefile
 %endif
@@ -154,8 +118,8 @@ export DIETHOME="%{_builddir}/%{name}-%{version}"
 MYARCH=`uname -m | sed -e 's/i[4-9]86/i386/' -e 's/armv[3-7]t\?e\?[lb]/arm/' -e 's!mips!%{_arch}!g'`
 find -name "Makefile" | xargs perl -pi -e "s|^DIET.*|DIET=\"${DIETHOME}/bin-${MYARCH}/diet\"|g" 	 
 # compile test suite:
-%make_build all  DEBUG=1
-%make_build -C inet all DEBUG=1
+%make_build all  DEBUG=1 STRIP=true
+%make_build -C inet all DEBUG=1 STRIP=true
 
 # run the tests
 # getpass requires user input
@@ -176,5 +140,7 @@ cd ..
 %dir %{diethome}/include
 %{diethome}/include/*
 %endif
+%{_bindir}/dnsd
+%{_bindir}/elftrunc
 %dir %{diethome}/lib-*
 %{diethome}/lib-*/*

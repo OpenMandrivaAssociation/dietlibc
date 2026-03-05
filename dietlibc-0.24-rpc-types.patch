@@ -1,6 +1,6 @@
-diff -Naurp dietlibc-0.32-20090113/include/rpc/types.h dietlibc-0.32-20090113.oden/include/rpc/types.h
---- dietlibc-0.32-20090113/include/rpc/types.h	2003-08-19 18:58:18.000000000 +0200
-+++ dietlibc-0.32-20090113.oden/include/rpc/types.h	2009-01-28 22:24:30.000000000 +0100
+diff -up dietlibc-0.35/include/rpc/types.h.rpc-types dietlibc-0.35/include/rpc/types.h
+--- dietlibc-0.35/include/rpc/types.h.rpc-types	2003-08-19 18:58:18.000000000 +0200
++++ dietlibc-0.35/include/rpc/types.h	2026-03-05 00:05:53.293399501 +0100
 @@ -63,6 +63,16 @@ typedef unsigned long rpcport_t;
  #ifndef makedev /* ie, we haven't already included it */
  #include <sys/types.h>
@@ -18,10 +18,10 @@ diff -Naurp dietlibc-0.32-20090113/include/rpc/types.h dietlibc-0.32-20090113.od
  #include <sys/time.h>
  #include <sys/param.h>
  
-diff -Naurp dietlibc-0.32-20090113/include/sys/types.h dietlibc-0.32-20090113.oden/include/sys/types.h
---- dietlibc-0.32-20090113/include/sys/types.h	2007-10-18 23:08:02.000000000 +0200
-+++ dietlibc-0.32-20090113.oden/include/sys/types.h	2009-01-28 22:24:30.000000000 +0100
-@@ -115,14 +115,6 @@ typedef uint16_t sa_family_t;
+diff -up dietlibc-0.35/include/sys/types.h.rpc-types dietlibc-0.35/include/sys/types.h
+--- dietlibc-0.35/include/sys/types.h.rpc-types	2023-04-04 09:38:28.000000000 +0200
++++ dietlibc-0.35/include/sys/types.h	2026-03-05 00:06:43.608951526 +0100
+@@ -131,14 +131,6 @@ typedef uint16_t sa_family_t;
  
  #ifdef _BSD_SOURCE
  /* die, BSD, die! */
@@ -32,11 +32,11 @@ diff -Naurp dietlibc-0.32-20090113/include/sys/types.h dietlibc-0.32-20090113.od
 -typedef unsigned char uchar __attribute_dontuse__;
 -typedef unsigned short ushort __attribute_dontuse__;
 -typedef unsigned int uint __attribute_dontuse__;
--typedef uint32_t u_long __attribute_dontuse__;
+-typedef unsigned long u_long __attribute_dontuse__;
  typedef uint32_t n_long __attribute_dontuse__;
  typedef uint32_t n_time __attribute_dontuse__;
  typedef uint16_t n_short __attribute_dontuse__;
-@@ -130,6 +122,17 @@ typedef uint32_t ulong __attribute_dontu
+@@ -146,6 +138,17 @@ typedef unsigned long ulong __attribute_
  typedef uint32_t nlong __attribute_dontuse__;
  typedef uint32_t ntime __attribute_dontuse__;
  typedef uint16_t nshort __attribute_dontuse__;
